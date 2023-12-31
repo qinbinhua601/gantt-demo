@@ -38,6 +38,7 @@
 <body>
   <!-- Create a container for the ZRender instance -->
   <div id="zrender-container" style="height: 400px;"></div>
+  <!-- popup 提示框 -->
   <div class="popup-wrapper">
     <div class="popup-wrapper__body">
       <form>
@@ -47,6 +48,8 @@
     </div>
   </div>
   <script>
+    let currentGroup = null;
+
     var debug = false;
     // Initialize ZRender
     var zr = zrender.init(document.getElementById("zrender-container"), {
@@ -207,6 +210,7 @@
         const taskBar = this.taskBar;
         oldWidth = taskBar.shape.width;
         oldX = taskBar.shape.x;
+        currentGroup = this.parent;
       });
       leftBar.on("drag", function (e) {
         const deltaX = e.event.zrX - dragStartX;
@@ -228,6 +232,7 @@
         const task = tasks[this.parent.index];
         task.start += offsetX;
         task.duration -= offsetX;
+        currentGroup = null;
         // Redraw the chart after dragging
         redrawChart(true);
       });
@@ -265,6 +270,8 @@
         const taskBar = this.taskBar;
         oldWidth = taskBar.shape.width;
         oldX = taskBar.shape.x;
+        console.log(currentGroup)
+        currentGroup = this.parent
       });
       rightBar.on("drag", function (e) {
         const deltaX = e.event.zrX - dragStartX;
@@ -283,6 +290,7 @@
         const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
         const task = tasks[this.parent.index];
         task.duration += offsetX;
+        currentGroup = null
         // Redraw the chart after dragging
         redrawChart(true);
       });
@@ -291,15 +299,108 @@
 
     function redrawChart(clear) {
       // margin left to the container
-      var chartStartX = 50;
+      let chartStartX = 50;
       // margin top to the container
-      var chartStartY = 50;
+      let chartStartY = 50;
       // taskBar height
-      var barHeight = 30;
+      let barHeight = 30;
       // taskBar margin bottom
-      var barMargin = debug ? 10 : 1;
+      let barMargin = debug ? 10 : 1;
       clear && zr.clear();
+      
       const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
+
+      let lastPos
+      let lastDayRect
+      zr.on('mousemove', function(e) {
+        if (currentGroup?.resizing || currentGroup?.dragging) {
+          return
+        }
+        const x = e.event.zrX - chartStartX
+        const y = e.event.zrY - chartStartY
+        const posX = Math.floor(x / unitWidth)
+        const posY = Math.floor(y / (barHeight + barMargin))
+        if (lastPos !== [posX, posY].join()) {
+          lastPos = [posX, posY].join()
+          if (posX >= 0 && posX < timeScaleWidth && posY >= 0 && posY < tasks.length) {
+            // console.log('zr', 'clicked', posX, posY)
+            const hasTask = posX >= tasks[posY].start && posX < tasks[posY].start + tasks[posY].duration
+            if (hasTask) {
+              lastDayRect && zr.remove(lastDayRect)
+              return
+            }
+            const dayHoverGroup = new zrender.Group()
+            dayHoverGroup.on('click', function() {
+              console.log('dayHoverGroup clicked pos: ', [posX, posY])
+              alert([posX, posY])
+            })
+            // draw the hover rect on the day grid
+            const dayRect = new zrender.Rect({
+              shape: {
+                x: chartStartX + unitWidth * posX + 5,
+                y: chartStartY + (barHeight + 1) * posY,
+                width: unitWidth - 10,
+                height: barHeight + 1,
+              },
+              style: { 
+                fill: 'transparent',
+                stroke: 'gray',
+                lineDash: [5, 7]
+              },
+              z: 100
+            })
+            const rowHoverRect = new zrender.Rect({
+              shape: {
+                x: chartStartX,
+                y: chartStartY + (barHeight + 1) * posY,
+                width: unitWidth * timeScaleWidth,
+                height: barHeight + 1,
+              },
+              style: { 
+                fill: 'rgba(221, 221, 221, 0.3)',
+              },
+              z: 1
+            })
+            const lineH = new zrender.Line({
+              shape: {
+                x1: chartStartX + unitWidth * posX + unitWidth / 2 - 5,
+                y1: chartStartY + (barHeight + 1) * posY + barHeight / 2,
+                x2: chartStartX + unitWidth * posX + unitWidth / 2 + 5,
+                y2: chartStartY + (barHeight + 1) * posY + barHeight / 2
+              },
+              style: {
+                stroke: 'gray'
+              },
+              z: 100
+            })
+            const lineV = new zrender.Line({
+              shape: {
+                x1: chartStartX + unitWidth * posX + unitWidth / 2,
+                y1: chartStartY + (barHeight + 1) * posY + barHeight / 2 - 5,
+                x2: chartStartX + unitWidth * posX + unitWidth / 2,
+                y2: chartStartY + (barHeight + 1) * posY + barHeight / 2 + 5
+              },
+              style: {
+                stroke: 'gray'
+              },
+              z: 100
+            })
+            dayHoverGroup.add(dayRect)
+            dayHoverGroup.add(lineH)
+            dayHoverGroup.add(lineV)
+            dayHoverGroup.add(rowHoverRect)
+            lastDayRect && zr.remove(lastDayRect)
+            lastDayRect = dayHoverGroup
+            zr.add(dayHoverGroup)
+          } else {
+            lastDayRect && zr.remove(lastDayRect)
+            // console.log('invalid pos')
+          }
+        } else {
+          // lastDayRect && zr.remove(lastDayRect)
+          // console.log('same as the last pos')
+        }
+      })
       // Draw time scale
       var timeScale = new zrender.Rect({
         shape: {
@@ -350,7 +451,6 @@
           dateText.on('click', function () {
             console.log('date text click', i);
             const index = mileStones.findIndex(item => item.start === i)
-            console.log(index)
             if (index === -1) {
               if (confirm('Do you want to CREATE a milestone here?')) {
                 mileStones.push({
@@ -359,11 +459,8 @@
               }
             } else {
               if (confirm('Do you want to DELETE the milestone here?')) {
-                mileStones.push({
-                  start: i
-                })
+                mileStones.splice(index, 1)
               }
-              mileStones.splice(index, 1)
             }
             redrawChart(true)
           })
@@ -399,7 +496,8 @@
       // Draw horizontal grid lines
       var gridLineCountY = tasks.length + 1;
 
-      for (var j = 0; j < gridLineCountY; j++) {
+      // for (var j = 0; j < gridLineCountY; j++) {
+      for (var j = 0; j < 1; j++) {
         var gridY = chartStartY + j * (barHeight + barMargin);
         var gridLineY = new zrender.Line({
           shape: {
@@ -449,7 +547,8 @@
       tasks.forEach(function (task, index) {
         // Calculate position and dimensions
         var x = chartStartX + task.start * unitWidth;
-        var y = chartStartY;
+        // var y = chartStartY;
+        var y = chartStartY + (barHeight + barMargin) * index;
         var width = task.duration * unitWidth;
         var taskBarRect = {
           width,
@@ -533,6 +632,7 @@
         group.on("dragstart", function (e) {
           if (this.resizing) return;
           dragStartX = e.event.zrX;
+          currentGroup = this
         });
         group.on("drag", function (e) {
           if (this.resizing) return;
@@ -548,6 +648,7 @@
           const mod = delta % unitWidth;
           const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
           task.start += offsetX;
+          currentGroup = null
           // Redraw the chart after dragging
           redrawChart(true);
         });
@@ -568,12 +669,13 @@
         zr.add(group);
 
         // Update the Y position for the next task
-        chartStartY += barHeight + barMargin;
+        // chartStartY += barHeight + barMargin;
       });
     }
 
     redrawChart();
 
+    // popup modal
     var Popup = {};
 
     Popup.show = function () {
