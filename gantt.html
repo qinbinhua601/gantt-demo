@@ -28,9 +28,15 @@
       display: none;
     }
 
-    .popup-wrapper .popup-wrapper__body button,
+    .popup-wrapper .popup-wrapper__body .button-wrapper button,
     textarea {
       display: block;
+    }
+    .popup-wrapper .popup-wrapper__body .button-wrapper {
+      display: flex;
+    }
+    .popup-wrapper .popup-wrapper__body .button-wrapper button {
+      margin-right: 10px;
     }
   </style>
 </head>
@@ -43,7 +49,10 @@
     <div class="popup-wrapper__body">
       <form>
         <textarea name="taskvalue" cols="30" rows="10" id="current-task" data-index="0"></textarea>
-        <button>修改</button>
+        <div class="button-wrapper">
+          <button class="modify">修改</button>
+          <button class="delete">删除</button>
+        </div>
       </form>
     </div>
   </div>
@@ -65,7 +74,8 @@
       { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
       { name: "Task 3", start: 6, duration: 2, resource: "Bob", fillColor: getRandomColor() },
       { name: "Task 4", start: 8, duration: 2, resource: "Bob", fillColor: getRandomColor() },
-      { name: "Task 5", start: 10, duration: 8, resource: "Uni", fillColor: getRandomColor() }
+      { name: "Task 5", start: 10, duration: 8, resource: "Uni", fillColor: getRandomColor() },
+      {}
       // Add more tasks as needed
     ];
 
@@ -171,7 +181,7 @@
       let min = 1000000000,
         max = -1;
       tasks.forEach((task) => {
-        const { start, duration } = task;
+        const { start = 0, duration = 0 } = task;
         min = Math.min(start, min);
         max = Math.max(max, start + duration);
       });
@@ -333,6 +343,10 @@
             dayHoverGroup.on('click', function() {
               console.log('dayHoverGroup clicked pos: ', [posX, posY])
               alert([posX, posY])
+              const taskName = prompt('task name?');
+              const resourceName = prompt('resource name?');
+              tasks.splice(posY, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
+              redrawChart(true)
             })
             // draw the hover rect on the day grid
             const dayRect = new zrender.Rect({
@@ -544,7 +558,7 @@
       });
 
       // Draw tasks, resource assignments, and task bars
-      tasks.forEach(function (task, index) {
+      tasks.filter(item => item?.name).forEach(function (task, index) {
         // Calculate position and dimensions
         var x = chartStartX + task.start * unitWidth;
         // var y = chartStartY;
@@ -682,7 +696,8 @@
       if (!Popup.el) {
         const $popup = document.querySelector('.popup-wrapper')
         const $popupBody = document.querySelector('.popup-wrapper__body');
-        const $button = $popup.querySelector('button');
+        const $button = $popup.querySelector('button.modify');
+        const $deleteButton = $popup.querySelector('button.delete');
 
         $popup.addEventListener('click', function () {
           Popup.hide();
@@ -690,9 +705,19 @@
 
         $button.onclick = function (e) {
           e.preventDefault();
-          const value = this.previousElementSibling.value;
-          const index = this.previousElementSibling.dataset.index;
+          const value = this.parentElement.previousElementSibling.value;
+          const index = this.parentElement.previousElementSibling.dataset.index;
           tasks.splice(index, 1, JSON.parse(value));
+          Popup.hide();
+          redrawChart(true);
+        }
+
+        $deleteButton.onclick = function(e) {
+          e.preventDefault();
+          const index = this.parentElement.previousElementSibling.dataset.index;
+          if(confirm('Are you sure to DELETE the task?')) {
+            tasks.splice(index, 1)
+          }
           Popup.hide();
           redrawChart(true);
         }
