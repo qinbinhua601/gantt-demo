@@ -342,7 +342,7 @@
             const dayHoverGroup = new zrender.Group()
             dayHoverGroup.on('click', function() {
               console.log('dayHoverGroup clicked pos: ', [posX, posY])
-              alert([posX, posY])
+              // alert([posX, posY])
               const taskName = prompt('task name?');
               const resourceName = prompt('resource name?');
               tasks.splice(posY, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
