@@ -58,7 +58,7 @@
   </div>
   <script>
     let currentGroup = null;
-
+    let lastHandleMove = null;
     var debug = false;
     // Initialize ZRender
     var zr = zrender.init(document.getElementById("zrender-container"), {
@@ -322,7 +322,7 @@
 
       let lastPos
       let lastDayRect
-      zr.on('mousemove', function(e) {
+      function handleMove(e) {
         if (currentGroup?.resizing || currentGroup?.dragging) {
           return
         }
@@ -414,7 +414,10 @@
           // lastDayRect && zr.remove(lastDayRect)
           // console.log('same as the last pos')
         }
-      })
+      }
+      lastHandleMove && zr.off('mousemove', lastHandleMove)
+      lastHandleMove = handleMove
+      zr.on('mousemove', handleMove)
       // Draw time scale
       var timeScale = new zrender.Rect({
         shape: {
