@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gantt</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/zrender/5.4.4/zrender.min.js"></script>
+  <style>
+    #zrender-container,
+    #off-screen {
+      outline: 1px solid red;
+      /* margin: 20px 0 0 150px; */
+    }
+
+    .popup-wrapper {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background-color: rgba(255, 0, 0, 0.3);
+      /* display: flex; */
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      display: none;
+    }
+
+    .popup-wrapper .popup-wrapper__body button,
+    textarea {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Create a container for the ZRender instance -->
+  <div id="zrender-container" style="height: 400px;"></div>
+  <div class="popup-wrapper">
+    <div class="popup-wrapper__body">
+      <form>
+        <textarea name="taskvalue" cols="30" rows="10" id="current-task" data-index="0"></textarea>
+        <button>修改</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    var debug = false;
+    // Initialize ZRender
+    var zr = zrender.init(document.getElementById("zrender-container"), {
+      renderer: 'canvas'
+    });
+    // unit width of the column
+    var unitWidth = 80;
+    // half unit width
+    var halfUnitWidth = unitWidth / 2;
+    // Define tasks for the Gantt chart
+    var tasks = [
+      { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
+      { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
+      { name: "Task 3", start: 6, duration: 2, resource: "Bob", fillColor: getRandomColor() },
+      { name: "Task 4", start: 8, duration: 2, resource: "Bob", fillColor: getRandomColor() },
+      { name: "Task 5", start: 10, duration: 8, resource: "Uni", fillColor: getRandomColor() }
+      // Add more tasks as needed
+    ];
+
+    // Define the milestones
+    var mileStones = [
+      { start: 1 },
+      { start: 10 }
+    ]
+    function createFlag() {
+      const flag = zrender.path.createFromString('M3.333,10v 5 c0,0.184 -0.149, 0.333 -0.333, 0.333 h-0.667A0.333, 0.333 0 0 1 2, 15 V 1.333 c0, -0.368 0.298, -0.666 0.667, -0.666 h 11.525 a 0.667, 0.667 0 0 1 0.581, 0.994 L 12.76, 5.233 a 0.333, 0.333 0 0 0 0.002, 0.33 L 14.753, 9 A 0.667, 0.667 0 0 1 14.176, 10 H 3.333z', {
+        style: {
+          fill: '#F54A45'
+        }
+      })
+      return flag;
+    }
+    function createFlagGroup(gridX, halfUnitWidth, chartStartY) {
+      const flagGroup = new zrender.Group()
+      const flag = createFlag()
+      const { width: fWidth, height: fHeight } = flag.getBoundingRect()
+      flag.attr('position', [gridX + halfUnitWidth - fWidth / 2, (chartStartY - 20) + 10 - fHeight / 2])
+      const flagHoveredCircle = new zrender.Circle({
+        shape: {
+          cx: gridX + halfUnitWidth + 1,
+          cy: (chartStartY - 20) + 10,
+          r: 12
+        },
+        style: {
+          fill: 'rgba(211, 211, 211, 0.5)'
+        }
+      })
+      flagGroup.add(flagHoveredCircle)
+      flagGroup.add(flag)
+      flagGroup.hide()
+      zr.add(flagGroup)
+      return [flagGroup, {
+        flag,
+        flagHoveredCircle
+      }]
+    }
+    function getRandomColor() {
+      // Generate random values for red, green, and blue components
+      var r = Math.floor(Math.random() * 256);
+      var g = Math.floor(Math.random() * 256);
+      var b = Math.floor(Math.random() * 256);
+
+      // Convert values to hexadecimal and format the color
+      var hexColor = '#' + r.toString(16).padStart(2, '0') +
+        g.toString(16).padStart(2, '0') +
+        b.toString(16).padStart(2, '0');
+
+      return hexColor;
+    }
+    function LightenDarkenColor(col, amt) {
+
+      var usePound = false;
+
+      if (col[0] == "#") {
+        col = col.slice(1);
+        usePound = true;
+      }
+
+      var num = parseInt(col, 16);
+
+      var r = (num >> 16) + amt;
+
+      if (r > 255) r = 255;
+      else if (r < 0) r = 0;
+
+      var b = ((num >> 8) & 0x00FF) + amt;
+
+      if (b > 255) b = 255;
+      else if (b < 0) b = 0;
+
+      var g = (num & 0x0000FF) + amt;
+
+      if (g > 255) g = 255;
+      else if (g < 0) g = 0;
+
+      return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16);
+
+    }
+    function replaceAlpha(colorString, newAlpha) {
+      // 解析现有颜色字符串
+      var match = colorString.match(/rgba?\((\d+), (\d+), (\d+), ([\d.]+)\)/);
+
+      if (!match) {
+        // 非法颜色字符串，返回原始字符串
+        return colorString;
+      }
+
+      // 提取颜色组件
+      var r = match[1];
+      var g = match[2];
+      var b = match[3];
+
+      // 使用新的 alpha 值
+      var updatedColor = `rgba(${r}, ${g}, ${b}, ${newAlpha})`;
+
+      return updatedColor;
+    }
+    function getTimeScaleWidthByTasks(tasks) {
+      let min = 1000000000,
+        max = -1;
+      tasks.forEach((task) => {
+        const { start, duration } = task;
+        min = Math.min(start, min);
+        max = Math.max(max, start + duration);
+      });
+      return max - min;
+    }
+
+    function getLeftHandleBar(w, box, taskBarRect) {
+      var { height: barHeight, width } = taskBarRect;
+      var leftBar = new zrender.Rect({
+        name: "leftBar",
+        style: {
+          fill: `rgba(0, 255, 0, ${debug ? 1 : 0})`,
+          lineWidth: 1
+        },
+        shape: {
+          width: w,
+          height: barHeight
+        },
+        draggable: "horizontal",
+        cursor: "ew-resize",
+        z: 1
+      });
+      leftBar.attr({
+        position: [box.x, box.y],
+        shape: {
+          x: -w / 2,
+          y: 0
+        }
+      });
+      let dragStartX = 0;
+      let oldX = 0;
+      let oldWidth = 0;
+      leftBar.on("dragstart", function (e) {
+        this.parent.resizing = true;
+        dragStartX = e.event.zrX;
+        const taskBar = this.taskBar;
+        oldWidth = taskBar.shape.width;
+        oldX = taskBar.shape.x;
+      });
+      leftBar.on("drag", function (e) {
+        const deltaX = e.event.zrX - dragStartX;
+        const taskBar = this.taskBar;
+        taskBar.attr({
+          shape: {
+            x: oldX + deltaX,
+            width: oldWidth - deltaX
+          }
+        });
+      });
+      leftBar.on("dragend", function (e) {
+        const deltaX = e.event.zrX - dragStartX;
+        const dir = deltaX < 0 ? -1 : 1;
+        const delta = Math.abs(deltaX);
+        const mod = delta % unitWidth;
+        const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
+        console.log(offsetX)
+        const task = tasks[this.parent.index];
+        task.start += offsetX;
+        task.duration -= offsetX;
+        // Redraw the chart after dragging
+        redrawChart(true);
+      });
+      return leftBar;
+    }
+
+    function getRightHandleBar(w, box, taskBarRect) {
+      var { height: barHeight, width } = taskBarRect;
+      var rightBar = new zrender.Rect({
+        style: {
+          fill: `rgba(255, 192, 203, ${debug ? 1 : 0})`,
+          lineWidth: 1
+        },
+        shape: {
+          width: w,
+          height: barHeight
+        },
+        draggable: "horizontal",
+        cursor: "ew-resize",
+        z: 1
+      });
+      rightBar.attr({
+        position: [box.x + width, box.y],
+        shape: {
+          x: -w / 2,
+          y: 0
+        }
+      });
+      let dragStartX = 0;
+      let oldX = 0;
+      let oldWidth = 0;
+      rightBar.on("dragstart", function (e) {
+        this.parent.resizing = true;
+        dragStartX = e.event.zrX;
+        const taskBar = this.taskBar;
+        oldWidth = taskBar.shape.width;
+        oldX = taskBar.shape.x;
+      });
+      rightBar.on("drag", function (e) {
+        const deltaX = e.event.zrX - dragStartX;
+        const taskBar = this.taskBar;
+        taskBar.attr({
+          shape: {
+            width: oldWidth + deltaX
+          }
+        });
+      });
+      rightBar.on("dragend", function (e) {
+        const deltaX = e.event.zrX - dragStartX;
+        const dir = deltaX < 0 ? -1 : 1;
+        const delta = Math.abs(deltaX);
+        const mod = delta % unitWidth;
+        const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
+        const task = tasks[this.parent.index];
+        task.duration += offsetX;
+        // Redraw the chart after dragging
+        redrawChart(true);
+      });
+      return rightBar;
+    }
+
+    function redrawChart(clear) {
+      // margin left to the container
+      var chartStartX = 50;
+      // margin top to the container
+      var chartStartY = 50;
+      // taskBar height
+      var barHeight = 30;
+      // taskBar margin bottom
+      var barMargin = debug ? 10 : 1;
+      clear && zr.clear();
+      const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
+      // Draw time scale
+      var timeScale = new zrender.Rect({
+        shape: {
+          x: chartStartX,
+          y: chartStartY - 20,
+          width: timeScaleWidth * unitWidth,
+          height: 20
+        },
+        style: {
+          // fill: "lightgray"
+          fill: "rgba(255, 0,0, .2)"
+        }
+      });
+      zr.add(timeScale);
+
+      // Draw grid lines
+      var gridStartX = chartStartX;
+      var gridEndX = timeScaleWidth * unitWidth;
+      var gridLineCount = timeScaleWidth + 1;
+
+      for (let i = 0; i < gridLineCount; i++) {
+        var gridX = gridStartX + i * unitWidth;
+        var gridLine = new zrender.Line({
+          shape: {
+            x1: gridX,
+            y1: chartStartY - 20,
+            x2: gridX,
+            y2: chartStartY + (barHeight + barMargin) * tasks.length
+          },
+          style: {
+            stroke: "lightgray"
+          }
+        });
+
+        // draw the date
+        if (i < gridLineCount - 1) {
+          const dateText = new zrender.Text({
+            style: {
+              text: i,
+              x: gridX,
+              y: chartStartY - 20,
+            },
+            z: 1
+          });
+          const [flagGroup, {
+            flag
+          }] = createFlagGroup(gridX, halfUnitWidth, chartStartY)
+          dateText.on('click', function () {
+            console.log('date text click', i);
+            const index = mileStones.findIndex(item => item.start === i)
+            console.log(index)
+            if (index === -1) {
+              if (confirm('Do you want to CREATE a milestone here?')) {
+                mileStones.push({
+                  start: i
+                })
+              }
+            } else {
+              if (confirm('Do you want to DELETE the milestone here?')) {
+                mileStones.push({
+                  start: i
+                })
+              }
+              mileStones.splice(index, 1)
+            }
+            redrawChart(true)
+          })
+          dateText.on('mouseover', function (e) {
+            this.attr({
+              style: {
+                opacity: 0
+              }
+            });
+            flagGroup.show()
+          })
+          dateText.on('mouseout', function (e) {
+            this.attr({
+              style: {
+                opacity: 1
+              }
+            });
+            flagGroup.hide()
+          })
+
+          const { width, height } = dateText.getBoundingRect()
+          dateText.attr({
+            style: {
+              x: gridX - width / 2 + halfUnitWidth,
+              y: chartStartY - 20 - height / 2 + 20 / 2,
+            }
+          })
+          zr.add(dateText);
+        }
+        zr.add(gridLine);
+      }
+
+      // Draw horizontal grid lines
+      var gridLineCountY = tasks.length + 1;
+
+      for (var j = 0; j < gridLineCountY; j++) {
+        var gridY = chartStartY + j * (barHeight + barMargin);
+        var gridLineY = new zrender.Line({
+          shape: {
+            x1: chartStartX,
+            y1: gridY,
+            x2: gridEndX + chartStartX,
+            y2: gridY
+          },
+          style: {
+            stroke: "lightgray"
+          }
+        });
+        zr.add(gridLineY);
+      }
+
+      // Draw milestones
+      mileStones.forEach(function (task) {
+        var milestone = new zrender.Rect({
+          shape: {
+            x: chartStartX + task.start * unitWidth - 1 + halfUnitWidth,
+            y: chartStartY,
+            width: 2,
+            height: tasks.length * (barHeight + barMargin)
+          },
+          style: {
+            fill: "rgba(255, 0, 0, 1)"
+          },
+          z: 1
+        });
+        var milestone_top = new zrender.Rect({
+          shape: {
+            x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
+            y: chartStartY - 20 - 20,
+            width: 10,
+            height: 20
+          },
+          style: {
+            fill: "rgba(255, 0, 0, 1)"
+          },
+          z: 1
+        });
+        zr.add(milestone);
+        zr.add(milestone_top);
+      });
+
+      // Draw tasks, resource assignments, and task bars
+      tasks.forEach(function (task, index) {
+        // Calculate position and dimensions
+        var x = chartStartX + task.start * unitWidth;
+        var y = chartStartY;
+        var width = task.duration * unitWidth;
+        var taskBarRect = {
+          width,
+          height: barHeight
+        };
+        // Create a group to hold task elements
+        var group = new zrender.Group({
+          position: [x, y],
+          // draggable: true  // Enable draggable for the group
+          draggable: "horizontal", // Enable draggable for the group
+        });
+        // Create a rectangle shape for each task
+        var rect = new zrender.Rect({
+          shape: {
+            x: 0,
+            y: 0,
+            width: width,
+            height: barHeight,
+            r: 6
+          },
+          style: {
+            // fill: task.fillColor || "blue"
+            fill: LightenDarkenColor(task.fillColor, 20)
+          },
+          cursor: 'move'
+        });
+        group.add(rect);
+        group.index = index;
+
+        var w = 6;
+        var box = rect.getBoundingRect();
+        var leftBar = getLeftHandleBar(w, box, taskBarRect);
+        leftBar.taskBar = rect;
+        group.add(leftBar);
+
+        var rightBar = getRightHandleBar(w, box, taskBarRect);
+        rightBar.taskBar = rect;
+        group.add(rightBar);
+
+        group.on("mouseover", function () {
+          if (this.dragging) return;
+          rect.attr("style", { fill: LightenDarkenColor(task.fillColor, -10) });
+        });
+
+        group.on("mouseout", function () {
+          if (this.dragging || this.resizing) return;
+          rect.attr("style", { fill: LightenDarkenColor(task.fillColor, 20) });
+        });
+
+        // zr.add(rect);
+
+        // Create a text shape for task name
+        var taskName = new zrender.Text({
+          style: {
+            text: task.name,
+            x: 0 + width / 2,
+            y: 0 + barHeight / 2 - 12 / 2,
+            textFill: "white",
+            textAlign: "center",
+            textVerticalAlign: "middle",
+            fill: "white"
+          },
+          cursor: 'move'
+        });
+        group.add(taskName);
+
+        // Create a text shape for resource assignment
+        var resourceText = new zrender.Text({
+          style: {
+            text: "Assigned to: " + task.resource,
+            x: 0 + width + 5,
+            y: barHeight / 2 + 0 - 12 / 2,
+            textFill: "black"
+          },
+          cursor: 'normal'
+        });
+        group.add(resourceText);
+
+        // drag logic
+        let dragStartX = 0;
+        group.on("dragstart", function (e) {
+          if (this.resizing) return;
+          dragStartX = e.event.zrX;
+        });
+        group.on("drag", function (e) {
+          if (this.resizing) return;
+        });
+        group.on("dragend", function (e) {
+          if (this.resizing) {
+            this.resizing = false;
+            return;
+          }
+          const deltaX = e.event.zrX - dragStartX;
+          const dir = deltaX < 0 ? -1 : 1;
+          const delta = Math.abs(deltaX);
+          const mod = delta % unitWidth;
+          const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
+          task.start += offsetX;
+          // Redraw the chart after dragging
+          redrawChart(true);
+        });
+        group.eachChild(function (child) {
+          child.attr({
+            z: 10
+          });
+        });
+
+        group.on("dblclick", function () {
+          Popup.show()
+          const $taskInput = document.querySelector('#current-task')
+
+          $taskInput.value = JSON.stringify(tasks[this.index], null, 2);
+          $taskInput.dataset.index = this.index
+        });
+
+        zr.add(group);
+
+        // Update the Y position for the next task
+        chartStartY += barHeight + barMargin;
+      });
+    }
+
+    redrawChart();
+
+    var Popup = {};
+
+    Popup.show = function () {
+      if (!Popup.el) {
+        const $popup = document.querySelector('.popup-wrapper')
+        const $popupBody = document.querySelector('.popup-wrapper__body');
+        const $button = $popup.querySelector('button');
+
+        $popup.addEventListener('click', function () {
+          Popup.hide();
+        });
+
+        $button.onclick = function (e) {
+          e.preventDefault();
+          const value = this.previousElementSibling.value;
+          const index = this.previousElementSibling.dataset.index;
+          tasks.splice(index, 1, JSON.parse(value));
+          Popup.hide();
+          redrawChart(true);
+        }
+
+        $popupBody.onclick = function (e) { e.stopPropagation(); }
+
+        Popup.el = $popup;
+      }
+
+      Popup.el.style.display = 'flex';
+    }
+    Popup.hide = function () {
+      Popup.el.style.display = 'none';
+    }
+  </script>
+</body>
+
+</html>
