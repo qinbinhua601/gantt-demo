@@ -94,15 +94,15 @@
       })
       return flag;
     }
-    function createFlagGroup(gridX, halfUnitWidth, chartStartY) {
+    function createFlagGroup(gridX, halfUnitWidth, chartStartY, timeScaleHeight) {
       const flagGroup = new zrender.Group()
       const flag = createFlag()
       const { width: fWidth, height: fHeight } = flag.getBoundingRect()
-      flag.attr('position', [gridX + halfUnitWidth - fWidth / 2, (chartStartY - 20) + 10 - fHeight / 2])
+      flag.attr('position', [gridX + halfUnitWidth - fWidth / 2, (chartStartY - timeScaleHeight) + timeScaleHeight / 2 - fHeight / 2])
       const flagHoveredCircle = new zrender.Circle({
         shape: {
           cx: gridX + halfUnitWidth + 1,
-          cy: (chartStartY - 20) + 10,
+          cy: (chartStartY - timeScaleHeight) + timeScaleHeight / 2,
           r: 12
         },
         style: {
@@ -272,6 +272,10 @@
     })
     const initChartStartX = 50, initChartStartY = 50;
     function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
+      // time scale height
+      const timeScaleHeight = 20;
+      // milestone top height
+      const milestone_top_height = 20;
       // margin left to the container
       let chartStartX = initChartStartX - scrollX;
       // margin top to the container
@@ -382,14 +386,14 @@
       }
       lastHandleMove && zr.off('mousemove', lastHandleMove)
       lastHandleMove = handleMove
-      zr.on('mousemove', handleMove)
+      zr.on('mousemove', handleMove);
       // Draw time scale
       var timeScale = new zrender.Rect({
         shape: {
           x: chartStartX,
-          y: chartStartY - 20,
+          y: chartStartY - timeScaleHeight,
           width: timeScaleWidth * unitWidth,
-          height: 20
+          height: timeScaleHeight
         },
         style: {
           // fill: "lightgray"
@@ -407,7 +411,7 @@
         var gridLine = new zrender.Line({
           shape: {
             x1: gridX,
-            y1: chartStartY - 20,
+            y1: chartStartY - timeScaleHeight,
             x2: gridX,
             y2: chartStartY + (barHeight + barMargin) * tasks.length
           },
@@ -449,13 +453,13 @@
             style: {
               text: i,
               x: gridX,
-              y: chartStartY - 20,
+              y: chartStartY - timeScaleHeight,
             },
             z: 1
           });
           const [flagGroup, {
             flag
-          }] = createFlagGroup(gridX, halfUnitWidth, chartStartY)
+          }] = createFlagGroup(gridX, halfUnitWidth, chartStartY, timeScaleHeight)
           dateText.on('click', function () {
             console.log('date text click', i);
             const index = mileStones.findIndex(item => item.start === i)
@@ -493,7 +497,7 @@
           dateText.attr({
             style: {
               x: gridX - width / 2 + halfUnitWidth,
-              y: chartStartY - 20 - height / 2 + 20 / 2,
+              y: chartStartY - timeScaleHeight - height / 2 + timeScaleHeight / 2,
             }
           })
           zr.add(dateText);
@@ -538,9 +542,9 @@
         var milestone_top = new zrender.Rect({
           shape: {
             x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
-            y: chartStartY - 20 - 20,
+            y: chartStartY - timeScaleHeight - milestone_top_height,
             width: 10,
-            height: 20
+            height: milestone_top_height
           },
           style: {
             fill: "rgba(255, 0, 0, 1)"
