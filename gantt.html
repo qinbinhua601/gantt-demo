@@ -56,9 +56,9 @@
       </form>
     </div>
   </div>
-  <script type="module">
-    import { hachureLines } from 'https://www.unpkg.com/hachure-fill@0.5.2/bin/hachure.js';
-    console.log(hachureLines)
+  <script src="./hachure.js"></script>
+  <script>
+    // console.log(hachureLines)
     let currentGroup = null;
     let lastHandleMove = null;
     var debug = false;
@@ -439,7 +439,6 @@
       var gridStartX = chartStartX;
       var gridEndX = timeScaleWidth * unitWidth;
       var gridLineCount = timeScaleWidth + 1;
-
       for (let i = 0; i < gridLineCount; i++) {
         var gridX = gridStartX + i * unitWidth;
         var gridLine = new zrender.Line({
@@ -456,6 +455,29 @@
 
         // draw the date
         if (i < gridLineCount - 1) {
+          // draw the hachure fill
+          if (i % 7 == 0 || i % 7 === 1) {
+            const lines = hachureLines([
+              [chartStartX + i * unitWidth, chartStartY],
+              [chartStartX + i * unitWidth + unitWidth, chartStartY],
+              [chartStartX + i * unitWidth + unitWidth, chartStartY + (barHeight + barMargin) * tasks.length],
+              [chartStartX + i * unitWidth, chartStartY + (barHeight + barMargin) * tasks.length]
+            ], 10, 45);
+            // console.log(lines)
+            lines.forEach(line => {
+              const [x1, y1] = line[0]
+              const [x2, y2] = line[1]
+              const l = new zrender.Line({
+                shape: {
+                  x1,y1,x2,y2
+                },
+                style: {
+                  stroke: 'rgba(221, 221, 221, 0.7)'
+                }
+              })
+              zr.add(l)
+            })
+          }
           const dateText = new zrender.Text({
             style: {
               text: i,
