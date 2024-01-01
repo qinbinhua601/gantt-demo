@@ -131,54 +131,7 @@
 
       return hexColor;
     }
-    function LightenDarkenColor(col, amt) {
 
-      var usePound = false;
-
-      if (col[0] == "#") {
-        col = col.slice(1);
-        usePound = true;
-      }
-
-      var num = parseInt(col, 16);
-
-      var r = (num >> 16) + amt;
-
-      if (r > 255) r = 255;
-      else if (r < 0) r = 0;
-
-      var b = ((num >> 8) & 0x00FF) + amt;
-
-      if (b > 255) b = 255;
-      else if (b < 0) b = 0;
-
-      var g = (num & 0x0000FF) + amt;
-
-      if (g > 255) g = 255;
-      else if (g < 0) g = 0;
-
-      return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16);
-
-    }
-    function replaceAlpha(colorString, newAlpha) {
-      // 解析现有颜色字符串
-      var match = colorString.match(/rgba?\((\d+), (\d+), (\d+), ([\d.]+)\)/);
-
-      if (!match) {
-        // 非法颜色字符串，返回原始字符串
-        return colorString;
-      }
-
-      // 提取颜色组件
-      var r = match[1];
-      var g = match[2];
-      var b = match[3];
-
-      // 使用新的 alpha 值
-      var updatedColor = `rgba(${r}, ${g}, ${b}, ${newAlpha})`;
-
-      return updatedColor;
-    }
     function getTimeScaleWidthByTasks(tasks) {
       let min = 1000000000,
         max = -1;
@@ -613,7 +566,7 @@
           },
           style: {
             // fill: task.fillColor || "blue"
-            fill: LightenDarkenColor(task.fillColor, 20)
+            fill: task.fillColor
           },
           cursor: 'move'
         });
@@ -632,12 +585,13 @@
 
         group.on("mouseover", function () {
           if (this.dragging) return;
-          rect.attr("style", { fill: LightenDarkenColor(task.fillColor, -10) });
+          
+          rect.attr("style", { fill: zrender.color.lift(task.fillColor, 0.3) });
         });
 
         group.on("mouseout", function () {
           if (this.dragging || this.resizing) return;
-          rect.attr("style", { fill: LightenDarkenColor(task.fillColor, 20) });
+          rect.attr("style", { fill: task.fillColor });
         });
 
         // zr.add(rect);
