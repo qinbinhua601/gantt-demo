@@ -262,11 +262,20 @@
       return rightBar;
     }
 
-    function redrawChart(clear) {
+    // scroll horizontally
+    let lastScrollX = 0, lastScrollY = 0;
+    zr.on('mousewheel', function(e) {
+      e.event.preventDefault();
+      // console.log(e.event, e.event.wheelDeltaX);
+      lastScrollX -= e.event.wheelDeltaX;
+      redrawChart(true, lastScrollX, 0);
+    })
+    const initChartStartX = 50, initChartStartY = 50;
+    function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
       // margin left to the container
-      let chartStartX = 50;
+      let chartStartX = initChartStartX - scrollX;
       // margin top to the container
-      let chartStartY = 50;
+      let chartStartY = initChartStartY - scrollY;
       // taskBar height
       let barHeight = 30;
       // taskBar margin bottom
@@ -411,26 +420,30 @@
         if (i < gridLineCount - 1) {
           // draw the hachure fill
           if (i % 7 == 0 || i % 7 === 1) {
-            const lines = hachureLines([
-              [chartStartX + i * unitWidth, chartStartY],
-              [chartStartX + i * unitWidth + unitWidth, chartStartY],
-              [chartStartX + i * unitWidth + unitWidth, chartStartY + (barHeight + barMargin) * tasks.length],
-              [chartStartX + i * unitWidth, chartStartY + (barHeight + barMargin) * tasks.length]
-            ], 10, 45);
-            // console.log(lines)
-            lines.forEach(line => {
-              const [x1, y1] = line[0]
-              const [x2, y2] = line[1]
-              const l = new zrender.Line({
-                shape: {
-                  x1,y1,x2,y2
-                },
-                style: {
-                  stroke: 'rgba(221, 221, 221, 0.7)'
-                }
+            try {
+              const lines = hachureLines([
+                [chartStartX + i * unitWidth, chartStartY],
+                [chartStartX + i * unitWidth + unitWidth, chartStartY],
+                [chartStartX + i * unitWidth + unitWidth, chartStartY + (barHeight + barMargin) * tasks.length],
+                [chartStartX + i * unitWidth, chartStartY + (barHeight + barMargin) * tasks.length]
+              ], 10, 45);
+              // console.log(lines)
+              lines.forEach(line => {
+                const [x1, y1] = line[0]
+                const [x2, y2] = line[1]
+                const l = new zrender.Line({
+                  shape: {
+                    x1,y1,x2,y2
+                  },
+                  style: {
+                    stroke: 'rgba(221, 221, 221, 0.7)'
+                  }
+                })
+                zr.add(l)
               })
-              zr.add(l)
-            })
+            } catch (error) {
+              console.log(error)
+            }
           }
           const dateText = new zrender.Text({
             style: {
