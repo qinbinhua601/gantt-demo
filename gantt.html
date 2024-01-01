@@ -57,6 +57,7 @@
     </div>
   </div>
   <script src="./hachure.js"></script>
+  <script src="./holidays.js"></script>
   <script>
     // console.log(hachureLines)
     let currentGroup = null;
@@ -70,7 +71,7 @@
     var unitWidth = 80;
     // half unit width
     var halfUnitWidth = unitWidth / 2;
-    // Define tasks for the Gantt chart
+    // Define tasks for the Gantt chart`
     var tasks = [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
       { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
@@ -422,8 +423,12 @@
 
         // draw the date
         if (i < gridLineCount - 1) {
+          const now = +new Date();
+          const currentDate = now + i * 60 * 1000 * 60 * 24
+          const dateInfo = isHoliday(currentDate)
           // draw the hachure fill
-          if (i % 7 == 0 || i % 7 === 1) {
+          if (dateInfo.isHoliday) {
+          // if (i % 7 == 0 || i % 7 === 1) {
             try {
               const lines = hachureLines([
                 [chartStartX + i * unitWidth, chartStartY],
@@ -451,7 +456,8 @@
           }
           const dateText = new zrender.Text({
             style: {
-              text: i,
+              // text: i,
+              text: dateInfo.dateString,
               x: gridX,
               y: chartStartY - timeScaleHeight,
             },
