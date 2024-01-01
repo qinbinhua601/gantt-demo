@@ -56,7 +56,9 @@
       </form>
     </div>
   </div>
-  <script>
+  <script type="module">
+    import { hachureLines } from './node_modules/hachure-fill/bin/hachure.js';
+    console.log(hachureLines)
     let currentGroup = null;
     let lastHandleMove = null;
     var debug = false;
