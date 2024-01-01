@@ -44,8 +44,16 @@
 </head>
 
 <body>
-  <!-- Reset the scroll button -->
-  <button id="back-to-origin-button">还原滚动位置</button>
+  <div class="control-item">
+    <!-- Reset the scroll button -->
+    <button id="back-to-origin-button">重置滚动</button>
+    <span id="last-scroll-x">0</span>
+  </div>
+  <div class="control-item">
+    <!-- clear all tasks -->
+    <button id="clear-button">清空任务</button>
+    <button id="clear-milestone-button">清空里程</button>
+  </div>
   <!-- Create a container for the ZRender instance -->
   <div id="zrender-container" style="height: 400px;"></div>
   <!-- popup 提示框 -->
@@ -89,7 +97,6 @@
 
     // Define the milestones
     const mileStones = [
-      { start: 1 },
       { start: 10 }
     ]
     function createFlag() {
@@ -270,13 +277,15 @@
 
     // scroll horizontally
     let lastScrollX = 0, lastScrollY = 0;
+    const $lastScrollXSpan = document.querySelector('#last-scroll-x');
     zr.on('mousewheel', function (e) {
       e.event.preventDefault();
       // console.log(e.event, e.event.wheelDeltaX);
       lastScrollX -= e.event.wheelDeltaX;
       redrawChart(true, lastScrollX, 0);
+      $lastScrollXSpan.innerText = lastScrollX;
     })
-    const initChartStartX = 50, initChartStartY = 50;
+    const initChartStartX = 1, initChartStartY = 50;
     function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
       // time scale height
       const timeScaleHeight = 20;
@@ -292,7 +301,7 @@
       let barMargin = debug ? 10 : 1;
       clear && zr.clear();
 
-      const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
+      // const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
 
       // hover day grid to add task
       let lastPos
@@ -307,7 +316,8 @@
         const posY = Math.floor(y / (barHeight + barMargin))
         if (lastPos !== [posX, posY].join()) {
           lastPos = [posX, posY].join()
-          if (posX >= 0 && posX < timeScaleWidth && posY >= 0 && posY < tasks.length) {
+          // if (true || (posX >= 0 && posX < timeScaleWidth && posY >= 0 && posY < tasks.length)) {
+          if (posY >= 0 && posY < tasks.length) {
             // console.log('zr', 'clicked', posX, posY)
             const hasTask = posX >= tasks[posY].start && posX < tasks[posY].start + tasks[posY].duration
             if (hasTask) {
@@ -341,7 +351,7 @@
             })
             const rowHoverRect = new zrender.Rect({
               shape: {
-                x: chartStartX,
+                x: chartStartX + lastScrollX,
                 y: chartStartY + (barHeight + 1) * posY,
                 width: unitWidth * timeScaleWidth,
                 height: barHeight + 1,
@@ -395,10 +405,14 @@
       lastHandleMove = handleMove
       zr.on('mousemove', handleMove);
 
+      const canvasWidth = zr.getWidth();
+      const canvasHeight = zr.getHeight();
+      const timeScaleWidth = Math.ceil((canvasWidth) / unitWidth);
       // Draw time scale
+      // MARK: 日期时间轴
       const timeScale = new zrender.Rect({
         shape: {
-          x: chartStartX,
+          x: chartStartX + lastScrollX,
           y: chartStartY - timeScaleHeight,
           width: timeScaleWidth * unitWidth,
           height: timeScaleHeight
@@ -410,11 +424,13 @@
       });
       zr.add(timeScale);
 
-      // Draw grid lines
+      // Draw vertical grid lines
+      // MARK: grid 竖线
       const gridStartX = chartStartX;
       const gridEndX = timeScaleWidth * unitWidth;
       const gridLineCount = timeScaleWidth + 1;
-      for (let i = 0; i < gridLineCount; i++) {
+      const deltaScrollX = Math.floor(lastScrollX / unitWidth);
+      for (let i = 0 + deltaScrollX, count = 0; count < gridLineCount; i++,count++) {
         const gridX = gridStartX + i * unitWidth;
         const gridLine = new zrender.Line({
           shape: {
@@ -429,7 +445,8 @@
         });
 
         // draw the date
-        if (i < gridLineCount - 1) {
+        if (count < gridLineCount - 1) {
+          // MARK: 同一个遍历画「休息日斜线」
           const now = +new Date('2024-01-01');
           const currentDate = now + i * 60 * 1000 * 60 * 24
           const dateInfo = isHoliday(currentDate)
@@ -461,6 +478,7 @@
               console.log(error)
             }
           }
+          // MARK: 画日期文字
           const dateText = new zrender.Text({
             style: {
               // text: i,
@@ -518,7 +536,8 @@
         zr.add(gridLine);
       }
 
-      // Draw horizontal grid lines
+      // Draw horizontally grid lines
+      // MARK: 画grid横线
       const gridLineCountY = tasks.length + 1;
 
       // for (let j = 0; j < gridLineCountY; j++) {
@@ -539,6 +558,7 @@
       }
 
       // Draw milestones
+      // MARK: 画里程碑线
       mileStones.forEach(function (task) {
         const milestone = new zrender.Rect({
           shape: {
@@ -569,6 +589,7 @@
       });
 
       // Draw tasks, resource assignments, and task bars
+      // MARK: 画任务条
       tasks.filter(item => item?.name).forEach(function (task, index) {
         // Calculate position and dimensions
         const x = chartStartX + task.start * unitWidth;
