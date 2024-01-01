@@ -286,22 +286,21 @@
       redrawChart(true, lastScrollX, 0);
       $lastScrollXSpan.innerText = lastScrollX;
     })
-    // time scale height
-    const timeScaleHeight = getParamsFromSearch('timeScaleHeight') ?? 20;
-    // milestone top height
-    const milestoneTopHeight = getParamsFromSearch('milestoneTopHeight') ?? 20;
-    // init pos of the canvas
-    const initChartStartX = 1, initChartStartY = Math.max(50, timeScaleHeight + milestoneTopHeight);
-    // taskBar height
-    const barHeight = getParamsFromSearch('barHeight') ?? 30;
-    // taskBar margin bottom
-    const barMargin = debug ? 10 : 1;
-    // margin left to the container
-    const chartStartX = initChartStartX - scrollX;
-    // margin top to the container
-    const chartStartY = initChartStartY - scrollY;
-
+    const initChartStartX = 1, initChartStartY = 50;
     function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
+      // time scale height
+      const timeScaleHeight = getParamsFromSearch('timeScaleHeight') ?? 20;
+      // milestone top height
+      const milestone_top_height = getParamsFromSearch('milestone_top_height') ?? 20;
+      // margin left to the container
+      const chartStartX = initChartStartX - scrollX;
+      // margin top to the container
+      const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestone_top_height) - scrollY;
+      // taskBar height
+      const barHeight = getParamsFromSearch('barHeight') ?? 30;
+      // taskBar margin bottom
+      const barMargin = debug ? 10 : 1;
+
       clear && zr.clear();
 
       // const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
@@ -578,9 +577,9 @@
         const milestone_top = new zrender.Rect({
           shape: {
             x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
-            y: chartStartY - timeScaleHeight - milestoneTopHeight,
+            y: chartStartY - timeScaleHeight - milestone_top_height,
             width: 10,
-            height: milestoneTopHeight
+            height: milestone_top_height
           },
           style: {
             fill: "rgba(255, 0, 0, 1)"
