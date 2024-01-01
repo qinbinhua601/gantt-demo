@@ -24,4 +24,3 @@ $clearMilestoneButton?.addEventListener('click', function() {
   mileStones.length = 0;
   redrawChart(true);
 })
-

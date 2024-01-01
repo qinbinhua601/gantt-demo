@@ -71,6 +71,7 @@
   <script src="./hachure.js"></script>
   <script src="./holidays.js"></script>
   <script src="./controls.js"></script>
+  <script src="./utils.js"></script>
   <script>
     // console.log(hachureLines)
     let currentGroup = null;
@@ -81,9 +82,9 @@
       renderer: 'canvas'
     });
     // unit width of the column
-    const unitWidth = 80;
+    let unitWidth = getParamsFromSearch() ?? 80;
     // half unit width
-    const halfUnitWidth = unitWidth / 2;
+    let halfUnitWidth = unitWidth / 2;
     // Define tasks for the Gantt chart`
     const tasks = [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
@@ -285,20 +286,22 @@
       redrawChart(true, lastScrollX, 0);
       $lastScrollXSpan.innerText = lastScrollX;
     })
-    const initChartStartX = 1, initChartStartY = 50;
+    // time scale height
+    const timeScaleHeight = getParamsFromSearch('timeScaleHeight') ?? 20;
+    // milestone top height
+    const milestoneTopHeight = getParamsFromSearch('milestoneTopHeight') ?? 20;
+    // init pos of the canvas
+    const initChartStartX = 1, initChartStartY = Math.max(50, timeScaleHeight + milestoneTopHeight);
+    // taskBar height
+    const barHeight = getParamsFromSearch('barHeight') ?? 30;
+    // taskBar margin bottom
+    const barMargin = debug ? 10 : 1;
+    // margin left to the container
+    const chartStartX = initChartStartX - scrollX;
+    // margin top to the container
+    const chartStartY = initChartStartY - scrollY;
+
     function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
-      // time scale height
-      const timeScaleHeight = 20;
-      // milestone top height
-      const milestone_top_height = 20;
-      // margin left to the container
-      let chartStartX = initChartStartX - scrollX;
-      // margin top to the container
-      let chartStartY = initChartStartY - scrollY;
-      // taskBar height
-      let barHeight = 30;
-      // taskBar margin bottom
-      let barMargin = debug ? 10 : 1;
       clear && zr.clear();
 
       // const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
@@ -338,9 +341,9 @@
             const dayRect = new zrender.Rect({
               shape: {
                 x: chartStartX + unitWidth * posX + 5,
-                y: chartStartY + (barHeight + 1) * posY,
+                y: chartStartY + (barHeight + barMargin) * posY,
                 width: unitWidth - 10,
-                height: barHeight + 1,
+                height: barHeight + barMargin,
               },
               style: {
                 fill: 'transparent',
@@ -352,9 +355,9 @@
             const rowHoverRect = new zrender.Rect({
               shape: {
                 x: chartStartX + lastScrollX,
-                y: chartStartY + (barHeight + 1) * posY,
+                y: chartStartY + (barHeight + barMargin) * posY,
                 width: unitWidth * timeScaleWidth,
-                height: barHeight + 1,
+                height: barHeight + barMargin,
               },
               style: {
                 fill: 'rgba(221, 221, 221, 0.3)',
@@ -364,9 +367,9 @@
             const lineH = new zrender.Line({
               shape: {
                 x1: chartStartX + unitWidth * posX + unitWidth / 2 - 5,
-                y1: chartStartY + (barHeight + 1) * posY + barHeight / 2,
+                y1: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2,
                 x2: chartStartX + unitWidth * posX + unitWidth / 2 + 5,
-                y2: chartStartY + (barHeight + 1) * posY + barHeight / 2
+                y2: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2
               },
               style: {
                 stroke: 'gray'
@@ -376,9 +379,9 @@
             const lineV = new zrender.Line({
               shape: {
                 x1: chartStartX + unitWidth * posX + unitWidth / 2,
-                y1: chartStartY + (barHeight + 1) * posY + barHeight / 2 - 5,
+                y1: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2 - 5,
                 x2: chartStartX + unitWidth * posX + unitWidth / 2,
-                y2: chartStartY + (barHeight + 1) * posY + barHeight / 2 + 5
+                y2: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2 + 5
               },
               style: {
                 stroke: 'gray'
@@ -575,9 +578,9 @@
         const milestone_top = new zrender.Rect({
           shape: {
             x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
-            y: chartStartY - timeScaleHeight - milestone_top_height,
+            y: chartStartY - timeScaleHeight - milestoneTopHeight,
             width: 10,
-            height: milestone_top_height
+            height: milestoneTopHeight
           },
           style: {
             fill: "rgba(255, 0, 0, 1)"
