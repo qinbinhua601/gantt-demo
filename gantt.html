@@ -346,7 +346,8 @@
               console.log('dayHoverGroup clicked pos: ', [posX, posY])
               // alert([posX, posY])
               const taskName = prompt('task name?');
-              const resourceName = prompt('resource name?');
+              if (!taskName) return
+              const resourceName = prompt('assign to who?');
               tasks.splice(posY, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
               redrawChart(true)
             })
