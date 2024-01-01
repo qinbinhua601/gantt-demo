@@ -423,7 +423,7 @@
 
         // draw the date
         if (i < gridLineCount - 1) {
-          const now = +new Date();
+          const now = +new Date('2024-01-01');
           const currentDate = now + i * 60 * 1000 * 60 * 24
           const dateInfo = isHoliday(currentDate)
           // draw the hachure fill
