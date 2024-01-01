@@ -32,9 +32,11 @@
     textarea {
       display: block;
     }
+
     .popup-wrapper .popup-wrapper__body .button-wrapper {
       display: flex;
     }
+
     .popup-wrapper .popup-wrapper__body .button-wrapper button {
       margin-right: 10px;
     }
@@ -42,6 +44,8 @@
 </head>
 
 <body>
+  <!-- Reset the scroll button -->
+  <button id="back-to-origin-button">还原滚动位置</button>
   <!-- Create a container for the ZRender instance -->
   <div id="zrender-container" style="height: 400px;"></div>
   <!-- popup 提示框 -->
@@ -58,21 +62,22 @@
   </div>
   <script src="./hachure.js"></script>
   <script src="./holidays.js"></script>
+  <script src="./controls.js"></script>
   <script>
     // console.log(hachureLines)
     let currentGroup = null;
     let lastHandleMove = null;
-    var debug = false;
+    const debug = false;
     // Initialize ZRender
-    var zr = zrender.init(document.getElementById("zrender-container"), {
+    const zr = zrender.init(document.getElementById("zrender-container"), {
       renderer: 'canvas'
     });
     // unit width of the column
-    var unitWidth = 80;
+    const unitWidth = 80;
     // half unit width
-    var halfUnitWidth = unitWidth / 2;
+    const halfUnitWidth = unitWidth / 2;
     // Define tasks for the Gantt chart`
-    var tasks = [
+    const tasks = [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
       { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
       { name: "Task 3", start: 6, duration: 2, resource: "Bob", fillColor: getRandomColor() },
@@ -83,7 +88,7 @@
     ];
 
     // Define the milestones
-    var mileStones = [
+    const mileStones = [
       { start: 1 },
       { start: 10 }
     ]
@@ -121,12 +126,12 @@
     }
     function getRandomColor() {
       // Generate random values for red, green, and blue components
-      var r = Math.floor(Math.random() * 256);
-      var g = Math.floor(Math.random() * 256);
-      var b = Math.floor(Math.random() * 256);
+      const r = Math.floor(Math.random() * 256);
+      const g = Math.floor(Math.random() * 256);
+      const b = Math.floor(Math.random() * 256);
 
       // Convert values to hexadecimal and format the color
-      var hexColor = '#' + r.toString(16).padStart(2, '0') +
+      const hexColor = '#' + r.toString(16).padStart(2, '0') +
         g.toString(16).padStart(2, '0') +
         b.toString(16).padStart(2, '0');
 
@@ -145,8 +150,8 @@
     }
 
     function getLeftHandleBar(w, box, taskBarRect) {
-      var { height: barHeight, width } = taskBarRect;
-      var leftBar = new zrender.Rect({
+      const { height: barHeight, width } = taskBarRect;
+      const leftBar = new zrender.Rect({
         name: "leftBar",
         style: {
           fill: `rgba(0, 255, 0, ${debug ? 1 : 0})`,
@@ -206,8 +211,8 @@
     }
 
     function getRightHandleBar(w, box, taskBarRect) {
-      var { height: barHeight, width } = taskBarRect;
-      var rightBar = new zrender.Rect({
+      const { height: barHeight, width } = taskBarRect;
+      const rightBar = new zrender.Rect({
         style: {
           fill: `rgba(255, 192, 203, ${debug ? 1 : 0})`,
           lineWidth: 1
@@ -265,7 +270,7 @@
 
     // scroll horizontally
     let lastScrollX = 0, lastScrollY = 0;
-    zr.on('mousewheel', function(e) {
+    zr.on('mousewheel', function (e) {
       e.event.preventDefault();
       // console.log(e.event, e.event.wheelDeltaX);
       lastScrollX -= e.event.wheelDeltaX;
@@ -286,9 +291,10 @@
       // taskBar margin bottom
       let barMargin = debug ? 10 : 1;
       clear && zr.clear();
-      
+
       const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
 
+      // hover day grid to add task
       let lastPos
       let lastDayRect
       function handleMove(e) {
@@ -309,7 +315,7 @@
               return
             }
             const dayHoverGroup = new zrender.Group()
-            dayHoverGroup.on('click', function() {
+            dayHoverGroup.on('click', function () {
               console.log('dayHoverGroup clicked pos: ', [posX, posY])
               // alert([posX, posY])
               const taskName = prompt('task name?');
@@ -326,7 +332,7 @@
                 width: unitWidth - 10,
                 height: barHeight + 1,
               },
-              style: { 
+              style: {
                 fill: 'transparent',
                 stroke: 'gray',
                 lineDash: [5, 7]
@@ -340,7 +346,7 @@
                 width: unitWidth * timeScaleWidth,
                 height: barHeight + 1,
               },
-              style: { 
+              style: {
                 fill: 'rgba(221, 221, 221, 0.3)',
               },
               z: 1
@@ -388,8 +394,9 @@
       lastHandleMove && zr.off('mousemove', lastHandleMove)
       lastHandleMove = handleMove
       zr.on('mousemove', handleMove);
+
       // Draw time scale
-      var timeScale = new zrender.Rect({
+      const timeScale = new zrender.Rect({
         shape: {
           x: chartStartX,
           y: chartStartY - timeScaleHeight,
@@ -404,12 +411,12 @@
       zr.add(timeScale);
 
       // Draw grid lines
-      var gridStartX = chartStartX;
-      var gridEndX = timeScaleWidth * unitWidth;
-      var gridLineCount = timeScaleWidth + 1;
+      const gridStartX = chartStartX;
+      const gridEndX = timeScaleWidth * unitWidth;
+      const gridLineCount = timeScaleWidth + 1;
       for (let i = 0; i < gridLineCount; i++) {
-        var gridX = gridStartX + i * unitWidth;
-        var gridLine = new zrender.Line({
+        const gridX = gridStartX + i * unitWidth;
+        const gridLine = new zrender.Line({
           shape: {
             x1: gridX,
             y1: chartStartY - timeScaleHeight,
@@ -428,7 +435,7 @@
           const dateInfo = isHoliday(currentDate)
           // draw the hachure fill
           if (dateInfo.isHoliday) {
-          // if (i % 7 == 0 || i % 7 === 1) {
+            // if (i % 7 == 0 || i % 7 === 1) {
             try {
               const lines = hachureLines([
                 [chartStartX + i * unitWidth, chartStartY],
@@ -442,7 +449,7 @@
                 const [x2, y2] = line[1]
                 const l = new zrender.Line({
                   shape: {
-                    x1,y1,x2,y2
+                    x1, y1, x2, y2
                   },
                   style: {
                     stroke: 'rgba(221, 221, 221, 0.7)'
@@ -512,12 +519,12 @@
       }
 
       // Draw horizontal grid lines
-      var gridLineCountY = tasks.length + 1;
+      const gridLineCountY = tasks.length + 1;
 
-      // for (var j = 0; j < gridLineCountY; j++) {
-      for (var j = 0; j < 1; j++) {
-        var gridY = chartStartY + j * (barHeight + barMargin);
-        var gridLineY = new zrender.Line({
+      // for (let j = 0; j < gridLineCountY; j++) {
+      for (let j = 0; j < 1; j++) {
+        const gridY = chartStartY + j * (barHeight + barMargin);
+        const gridLineY = new zrender.Line({
           shape: {
             x1: chartStartX,
             y1: gridY,
@@ -533,7 +540,7 @@
 
       // Draw milestones
       mileStones.forEach(function (task) {
-        var milestone = new zrender.Rect({
+        const milestone = new zrender.Rect({
           shape: {
             x: chartStartX + task.start * unitWidth - 1 + halfUnitWidth,
             y: chartStartY,
@@ -545,7 +552,7 @@
           },
           z: 1
         });
-        var milestone_top = new zrender.Rect({
+        const milestone_top = new zrender.Rect({
           shape: {
             x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
             y: chartStartY - timeScaleHeight - milestone_top_height,
@@ -564,22 +571,21 @@
       // Draw tasks, resource assignments, and task bars
       tasks.filter(item => item?.name).forEach(function (task, index) {
         // Calculate position and dimensions
-        var x = chartStartX + task.start * unitWidth;
-        // var y = chartStartY;
-        var y = chartStartY + (barHeight + barMargin) * index;
-        var width = task.duration * unitWidth;
-        var taskBarRect = {
+        const x = chartStartX + task.start * unitWidth;
+        const y = chartStartY + (barHeight + barMargin) * index;
+        const width = task.duration * unitWidth;
+        const taskBarRect = {
           width,
           height: barHeight
         };
         // Create a group to hold task elements
-        var group = new zrender.Group({
+        const group = new zrender.Group({
           position: [x, y],
           // draggable: true  // Enable draggable for the group
           draggable: "horizontal", // Enable draggable for the group
         });
         // Create a rectangle shape for each task
-        var rect = new zrender.Rect({
+        const rect = new zrender.Rect({
           shape: {
             x: 0,
             y: 0,
@@ -596,19 +602,19 @@
         group.add(rect);
         group.index = index;
 
-        var w = 6;
-        var box = rect.getBoundingRect();
-        var leftBar = getLeftHandleBar(w, box, taskBarRect);
+        const w = 6;
+        const box = rect.getBoundingRect();
+        const leftBar = getLeftHandleBar(w, box, taskBarRect);
         leftBar.taskBar = rect;
         group.add(leftBar);
 
-        var rightBar = getRightHandleBar(w, box, taskBarRect);
+        const rightBar = getRightHandleBar(w, box, taskBarRect);
         rightBar.taskBar = rect;
         group.add(rightBar);
 
         group.on("mouseover", function () {
           if (this.dragging) return;
-          
+
           rect.attr("style", { fill: zrender.color.lift(task.fillColor, 0.3) });
         });
 
@@ -620,7 +626,7 @@
         // zr.add(rect);
 
         // Create a text shape for task name
-        var taskName = new zrender.Text({
+        const taskName = new zrender.Text({
           style: {
             text: task.name,
             x: 0 + width / 2,
@@ -635,7 +641,7 @@
         group.add(taskName);
 
         // Create a text shape for resource assignment
-        var resourceText = new zrender.Text({
+        const resourceText = new zrender.Text({
           style: {
             text: "Assigned to: " + task.resource,
             x: 0 + width + 5,
@@ -695,7 +701,7 @@
     redrawChart();
 
     // popup modal
-    var Popup = {};
+    let Popup = {};
 
     Popup.show = function () {
       if (!Popup.el) {
@@ -717,10 +723,10 @@
           redrawChart(true);
         }
 
-        $deleteButton.onclick = function(e) {
+        $deleteButton.onclick = function (e) {
           e.preventDefault();
           const index = this.parentElement.previousElementSibling.dataset.index;
-          if(confirm('Are you sure to DELETE the task?')) {
+          if (confirm('Are you sure to DELETE the task?')) {
             tasks.splice(index, 1)
           }
           Popup.hide();
