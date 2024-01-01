@@ -17,7 +17,5 @@
     "url": "https://github.com/qinbinhua601/gantt-demo/issues"
   },
   "homepage": "https://github.com/qinbinhua601/gantt-demo#readme",
-  "dependencies": {
-    "hachure-fill": "^0.5.2"
-  }
+  "dependencies": {}
 }
