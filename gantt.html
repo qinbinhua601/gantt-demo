@@ -77,6 +77,8 @@
     let currentGroup = null;
     let lastHandleMove = null;
     const debug = false;
+
+    const defaultTaskOwner = 'alexq';
     // Initialize ZRender
     const zr = zrender.init(document.getElementById("zrender-container"), {
       renderer: 'canvas'
@@ -85,8 +87,11 @@
     let unitWidth = getParamsFromSearch() ?? 80;
     // half unit width
     let halfUnitWidth = unitWidth / 2;
+    // taskName paddingLeft
+    let taskNamePaddingLeft = getParamsFromSearch('taskNamePaddingLeft') ?? 30;
+    const useLocal = getParamsFromSearch('useLocal');
     // Define tasks for the Gantt chart`
-    const tasks = [
+    const tasks = useLocal ? getLocal() : [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
       { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
       { name: "Task 3", start: 6, duration: 2, resource: "Bob", fillColor: getRandomColor() },
@@ -95,11 +100,13 @@
       {}
       // Add more tasks as needed
     ];
+    window.tasks = tasks;
 
     // Define the milestones
-    const mileStones = [
+    const mileStones = useLocal ? getLocal('mileStones') : [
       { start: 10 }
-    ]
+    ];
+    window.mileStones = mileStones;
     function createFlag() {
       const flag = zrender.path.createFromString('M3.333,10v 5 c0,0.184 -0.149, 0.333 -0.333, 0.333 h-0.667A0.333, 0.333 0 0 1 2, 15 V 1.333 c0, -0.368 0.298, -0.666 0.667, -0.666 h 11.525 a 0.667, 0.667 0 0 1 0.581, 0.994 L 12.76, 5.233 a 0.333, 0.333 0 0 0 0.002, 0.33 L 14.753, 9 A 0.667, 0.667 0 0 1 14.176, 10 H 3.333z', {
         style: {
@@ -211,6 +218,7 @@
         const task = tasks[this.parent.index];
         task.start += offsetX;
         task.duration -= offsetX;
+        syncLocal();
         currentGroup = null;
         // Redraw the chart after dragging
         redrawChart(true);
@@ -269,6 +277,7 @@
         const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
         const task = tasks[this.parent.index];
         task.duration += offsetX;
+        syncLocal();
         currentGroup = null
         // Redraw the chart after dragging
         redrawChart(true);
@@ -332,8 +341,9 @@
               // alert([posX, posY])
               const taskName = prompt('task name?');
               if (!taskName) return
-              const resourceName = prompt('assign to who?');
-              tasks.splice(posY, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
+              const resourceName = prompt('assign to who?') || defaultTaskOwner;
+              tasks.splice(posY, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() });
+              syncLocal();
               redrawChart(true)
             })
             // draw the hover rect on the day grid
@@ -500,11 +510,13 @@
               if (confirm('Do you want to CREATE a milestone here?')) {
                 mileStones.push({
                   start: i
-                })
+                });
+                syncLocal();
               }
             } else {
               if (confirm('Do you want to DELETE the milestone here?')) {
                 mileStones.splice(index, 1)
+                syncLocal();
               }
             }
             redrawChart(true)
@@ -564,10 +576,11 @@
       mileStones.forEach(function (task) {
         const milestone = new zrender.Rect({
           shape: {
-            x: chartStartX + task.start * unitWidth - 1 + halfUnitWidth,
-            y: chartStartY,
+            // x: chartStartX + task.start * unitWidth - 1 + halfUnitWidth,
+            x: chartStartX + task.start * unitWidth - 1,
+            y: chartStartY - timeScaleHeight,
             width: 2,
-            height: tasks.length * (barHeight + barMargin)
+            height: tasks.length * (barHeight + barMargin) + timeScaleHeight
           },
           style: {
             fill: "rgba(255, 0, 0, 1)"
@@ -576,7 +589,9 @@
         });
         const milestone_top = new zrender.Rect({
           shape: {
-            x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
+            // x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
+            x: chartStartX + task.start * unitWidth - 5,
+            // y: chartStartY - timeScaleHeight - milestone_top_height,
             y: chartStartY - timeScaleHeight - milestone_top_height,
             width: 10,
             height: milestone_top_height
@@ -652,10 +667,10 @@
         const taskName = new zrender.Text({
           style: {
             text: task.name,
-            x: 0 + width / 2,
+            x: 0 + taskNamePaddingLeft,
             y: 0 + barHeight / 2 - 12 / 2,
             textFill: "white",
-            textAlign: "center",
+            textAlign: "left",
             textVerticalAlign: "middle",
             fill: "white"
           },
@@ -696,6 +711,7 @@
           const mod = delta % unitWidth;
           const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
           task.start += offsetX;
+          syncLocal();
           currentGroup = null
           // Redraw the chart after dragging
           redrawChart(true);
@@ -742,6 +758,7 @@
           const value = this.parentElement.previousElementSibling.value;
           const index = this.parentElement.previousElementSibling.dataset.index;
           tasks.splice(index, 1, JSON.parse(value));
+          syncLocal();
           Popup.hide();
           redrawChart(true);
         }
@@ -751,6 +768,7 @@
           const index = this.parentElement.previousElementSibling.dataset.index;
           if (confirm('Are you sure to DELETE the task?')) {
             tasks.splice(index, 1)
+            syncLocal();
           }
           Popup.hide();
           redrawChart(true);

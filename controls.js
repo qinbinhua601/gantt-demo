@@ -15,6 +15,7 @@ $clearButton?.addEventListener('click', function() {
   for(let i = 0; i < oldTaskLength; i++) {
     tasks.push({});
   }
+  syncLocal();
   redrawChart(true);
 })
 
@@ -22,5 +23,6 @@ const $clearMilestoneButton = document.querySelector('#clear-milestone-button');
 
 $clearMilestoneButton?.addEventListener('click', function() {
   mileStones.length = 0;
+  syncLocal('mileStones');
   redrawChart(true);
 })
