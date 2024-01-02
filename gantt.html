@@ -285,8 +285,36 @@
       return rightBar;
     }
 
+    function drawTodayLine(chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin) {
+      const todayLine = new zrender.Rect({
+        shape: {
+          x: chartStartX + todayOffset * unitWidth - 1 + halfUnitWidth,
+          y: chartStartY,
+          width: 2,
+          height: tasks.length * (barHeight + barMargin)
+        },
+        style: {
+          fill: "#2955c9"
+        },
+        z: 1
+      });
+      const circle = new zrender.Circle({
+        shape: {
+          cx: chartStartX + todayOffset * unitWidth + halfUnitWidth,
+          cy: chartStartY - timeScaleHeight + timeScaleHeight + 2,
+          r: 3
+        },
+        style: {
+          fill: "#2955c9"
+        }
+      })
+      zr.add(todayLine);
+      zr.add(circle);
+    }
+
+    const todayOffset = Math.floor((+new Date() - +new Date('2024-01-01')) / (60 * 60 * 24 * 1000))
     // scroll horizontally
-    let lastScrollX = 0, lastScrollY = 0;
+    let lastScrollX = 0 + (todayOffset - 1) * unitWidth, lastScrollY = 0;
     const $lastScrollXSpan = document.querySelector('#last-scroll-x');
     zr.on('mousewheel', function (e) {
       e.event.preventDefault();
@@ -575,6 +603,9 @@
         });
         zr.add(gridLineY);
       }
+
+      // draw today line
+      drawTodayLine(chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin);
 
       // Draw milestones
       // MARK: 画里程碑线
