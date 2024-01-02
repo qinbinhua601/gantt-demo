@@ -295,6 +295,11 @@
       redrawChart(true, lastScrollX, 0);
       $lastScrollXSpan.innerText = lastScrollX;
     })
+    // redraw when browser window size change
+    window.addEventListener('resize', function() {
+      zr.resize();
+      redrawChart(true);
+    });
     const initChartStartX = 1, initChartStartY = 50;
     function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
       // time scale height
