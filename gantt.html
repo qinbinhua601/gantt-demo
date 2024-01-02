@@ -104,7 +104,7 @@
 
     // Define the milestones
     const mileStones = useLocal ? getLocal('mileStones') : [
-      { start: 10 }
+      { start: 10, name: '提测' }
     ];
     window.mileStones = mileStones;
     function createFlag() {
@@ -541,8 +541,10 @@
             const index = mileStones.findIndex(item => item.start === i)
             if (index === -1) {
               if (confirm('Do you want to CREATE a milestone here?')) {
+                const mileStoneName = prompt('mileStone name?');
                 mileStones.push({
-                  start: i
+                  start: i,
+                  name: mileStoneName
                 });
                 syncLocal();
               }
@@ -609,11 +611,11 @@
 
       // Draw milestones
       // MARK: 画里程碑线
-      mileStones.forEach(function (task) {
+      mileStones.forEach(function (item) {
         const milestone = new zrender.Rect({
           shape: {
-            // x: chartStartX + task.start * unitWidth - 1 + halfUnitWidth,
-            x: chartStartX + task.start * unitWidth - 1,
+            // x: chartStartX + milestone.start * unitWidth - 1 + halfUnitWidth,
+            x: chartStartX + item.start * unitWidth - 1,
             y: chartStartY - timeScaleHeight,
             width: 2,
             height: tasks.length * (barHeight + barMargin) + timeScaleHeight
@@ -625,9 +627,7 @@
         });
         const milestone_top = new zrender.Rect({
           shape: {
-            // x: chartStartX + task.start * unitWidth - 5 + halfUnitWidth,
-            x: chartStartX + task.start * unitWidth - 5,
-            // y: chartStartY - timeScaleHeight - milestone_top_height,
+            x: chartStartX + item.start * unitWidth - 1,
             y: chartStartY - timeScaleHeight - milestone_top_height,
             width: 10,
             height: milestone_top_height
@@ -637,8 +637,26 @@
           },
           z: 1
         });
+        const milestone_top_text = new zrender.Text({
+          style: {
+            x: chartStartX + item.start * unitWidth - 1 + 10,
+            y: chartStartY - timeScaleHeight - milestone_top_height,
+            text: item.name || '里程碑',
+            fill: "white",
+            lineHeight: milestone_top_height,
+            fontSize: 12
+          },
+          z: 1
+        });
+        const milestone_top_text_rect = milestone_top_text.getBoundingRect()
+        milestone_top.attr({
+          shape: {
+            width: milestone_top_text_rect.width + 10 * 2,
+          }
+        })
         zr.add(milestone);
         zr.add(milestone_top);
+        zr.add(milestone_top_text);
       });
 
       // Draw tasks, resource assignments, and task bars
