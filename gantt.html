@@ -101,7 +101,7 @@
   <script>
     let currentGroup = null;
     let lastHandleMove = null;
-    const debug = false;
+    const debug = getParamsFromSearch('debug') ?? false;
 
     const defaultTaskOwner = 'alexq';
     // Initialize ZRender
@@ -184,7 +184,7 @@
       const canvasHeight = zr.getHeight();
 
       const boundingLeft = Math.floor(lastScrollX / unitWidth);
-      const boundingRight = Math.ceil((lastScrollX + canvasWidth) / unitWidth);
+      const boundingRight = Math.floor((lastScrollX + canvasWidth) / unitWidth);
       // hover day grid to add task
       let lastPos
       let lastDayRect
@@ -496,6 +496,7 @@
         zr.add(milestone_top_text);
       });
 
+      let drawTaskBar = 0;
       // Draw tasks, resource assignments, and task bars
       // MARK: 画任务条
       tasks.forEach(function (task, index) {
@@ -503,6 +504,7 @@
         // perf: 在视口外跳过
         if (index > Math.floor((canvasHeight - chartStartY) / (barHeight + barMargin))) return
         if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
+        drawTaskBar++;
         // Calculate position and dimensions
         const x = chartStartX + task.start * unitWidth;
         const y = chartStartY + (barHeight + barMargin) * index;
@@ -658,6 +660,10 @@
 
         zr.add(group);
       });
+
+      debug && console.log({
+        drawTaskBar
+      })
     }
 
     redrawChart();
