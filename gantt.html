@@ -55,7 +55,7 @@
     <button id="clear-milestone-button">清空里程</button>
   </div>
   <!-- Create a container for the ZRender instance -->
-  <div id="zrender-container" style="height: 400px;"></div>
+  <div id="zrender-container" style="height: 800px;"></div>
   <!-- popup 提示框 -->
   <div class="popup-wrapper">
     <div class="popup-wrapper__body">
@@ -340,6 +340,7 @@
       const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestone_top_height) - scrollY;
       // taskBar height
       const barHeight = getParamsFromSearch('barHeight') ?? 30;
+
       // taskBar margin bottom
       const barMargin = debug ? 10 : 1;
 
