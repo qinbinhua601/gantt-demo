@@ -16,7 +16,7 @@ Popup.show = function () {
     $button.onclick = function (e) {
       e.preventDefault();
       const value = this.parentElement.previousElementSibling.value;
-      const index = this.parentElement.previousElementSibling.dataset.index;
+      const index = Number(this.parentElement.previousElementSibling.dataset.index);
       tasks.splice(index, 1, JSON.parse(value));
       syncLocal();
       Popup.hide();
@@ -25,7 +25,7 @@ Popup.show = function () {
 
     $deleteButton.onclick = function (e) {
       e.preventDefault();
-      const index = this.parentElement.previousElementSibling.dataset.index;
+      const index = Number(this.parentElement.previousElementSibling.dataset.index);
       if (confirm('Are you sure to DELETE the task?')) {
         tasks.splice(index, 1)
         syncLocal();
@@ -36,9 +36,11 @@ Popup.show = function () {
 
     $copyButton.onclick = function (e) {
       e.preventDefault();
-      const index = this.parentElement.previousElementSibling.dataset.index;
-      const curTask = {...tasks[index]};
-      tasks.splice(index, 0, curTask);
+      const index = Number(this.parentElement.previousElementSibling.dataset.index);
+      const curTask = {...tasks[index], duration: 1 };
+      tasks.splice(index + 1, 0, curTask);
+      console.log(tasks[index])
+      syncLocal();
       Popup.hide();
       redrawChart(true);
     }
