@@ -35,10 +35,31 @@
 
     .popup-wrapper .popup-wrapper__body .button-wrapper {
       display: flex;
+      justify-content: space-between;
     }
 
     .popup-wrapper .popup-wrapper__body .button-wrapper button {
-      margin-right: 10px;
+      width: 100px;
+      height: 32px;
+      cursor: pointer;
+    }
+    .popup-wrapper .popup-wrapper__body .button-wrapper button.delete:hover {
+      background-color: #f00;
+      outline: none;
+      border-color: #f00;
+      color: #fff;
+    }
+    .popup-wrapper .popup-wrapper__body .button-wrapper button.copy:hover {
+      background-color: #86a5e5;
+      outline: none;
+      border-color: #86a5e5;
+      color: #fff;
+    }
+    .popup-wrapper .popup-wrapper__body .button-wrapper button.modify:hover {
+      background-color: #1f8a6f;
+      outline: none;
+      border-color: #1f8a6f;
+      color: #fff;
     }
   </style>
 </head>
@@ -64,6 +85,7 @@
         <div class="button-wrapper">
           <button class="modify">修改</button>
           <button class="delete">删除</button>
+          <button class="copy">复制</button>
         </div>
       </form>
     </div>
@@ -557,6 +579,7 @@
           if (this.resizing) return;
         });
         group.on("dragend", function (e) {
+          console.log('dragend')
           if (this.resizing) {
             this.resizing = false;
             return;
@@ -587,9 +610,6 @@
         });
 
         zr.add(group);
-
-        // Update the Y position for the next task
-        // chartStartY += barHeight + barMargin;
       });
     }
 
