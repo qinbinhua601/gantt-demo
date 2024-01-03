@@ -129,6 +129,8 @@
     const includeHoliday = getParamsFromSearch('includeHoliday') ?? false;
     // if use local data
     const useLocal = getParamsFromSearch('useLocal');
+    // mockTaskSize for test only enabled when useLocal is false
+    const mockTaskSize = !useLocal && getParamsFromSearch('mockTaskSize') ? Number(getParamsFromSearch('mockTaskSize')) : 5;
     // Define tasks for the Gantt chart
     const tasks = useLocal ? getLocal() : [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
@@ -139,6 +141,10 @@
       {}
       // Add more tasks as needed
     ];
+    while(tasks.length < mockTaskSize) {
+      const lastTask = tasks.pop();
+      tasks.push(...[...tasks, lastTask]);
+    }
     window.tasks = tasks;
 
     // Define the milestones
@@ -174,7 +180,11 @@
       const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestoneTopHeight) - scrollY;
       // clear the painter
       clear && zr.clear();
+      const canvasWidth = zr.getWidth();
+      const canvasHeight = zr.getHeight();
 
+      const boundingLeft = Math.floor(lastScrollX / unitWidth);
+      const boundingRight = Math.ceil((lastScrollX + canvasWidth) / unitWidth);
       // hover day grid to add task
       let lastPos
       let lastDayRect
@@ -278,7 +288,6 @@
       lastHandleMove = handleMove
       zr.on('mousemove', handleMove);
 
-      const canvasWidth = zr.getWidth();
       const timeScaleWidth = Math.ceil((canvasWidth) / unitWidth);
       // Draw time scale
       // MARK: 日期时间轴
@@ -303,13 +312,15 @@
       const gridLineCount = timeScaleWidth + 1;
       const deltaScrollX = Math.floor(lastScrollX / unitWidth);
       for (let i = 0 + deltaScrollX, count = 0; count < gridLineCount; i++,count++) {
+        // perf: 
+        const viewPortTaskLength = Math.min(tasks.length, (canvasHeight - chartStartY) / (barHeight + barMargin))
         const gridX = gridStartX + i * unitWidth;
         const gridLine = new zrender.Line({
           shape: {
             x1: gridX,
             y1: chartStartY - timeScaleHeight,
             x2: gridX,
-            y2: chartStartY + (barHeight + barMargin) * tasks.length
+            y2: chartStartY + (barHeight + barMargin) * viewPortTaskLength
           },
           style: {
             stroke: "lightgray"
@@ -329,8 +340,8 @@
               const lines = hachureLines([
                 [chartStartX + i * unitWidth, chartStartY],
                 [chartStartX + i * unitWidth + unitWidth, chartStartY],
-                [chartStartX + i * unitWidth + unitWidth, chartStartY + (barHeight + barMargin) * tasks.length],
-                [chartStartX + i * unitWidth, chartStartY + (barHeight + barMargin) * tasks.length]
+                [chartStartX + i * unitWidth + unitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength],
+                [chartStartX + i * unitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength]
               ], 10, 45);
               // console.log(lines)
               lines.forEach(line => {
@@ -487,7 +498,11 @@
 
       // Draw tasks, resource assignments, and task bars
       // MARK: 画任务条
-      tasks.filter(item => item?.name).forEach(function (task, index) {
+      tasks.forEach(function (task, index) {
+        if (!task?.name) return
+        // perf: 在视口外跳过
+        if (index > Math.floor((canvasHeight - chartStartY) / (barHeight + barMargin))) return
+        if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
         // Calculate position and dimensions
         const x = chartStartX + task.start * unitWidth;
         const y = chartStartY + (barHeight + barMargin) * index;
