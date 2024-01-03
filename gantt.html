@@ -113,7 +113,7 @@
     // half unit width
     let halfUnitWidth = unitWidth / 2;
     // taskName paddingLeft
-    let taskNamePaddingLeft = getParamsFromSearch('taskNamePaddingLeft') ?? 30;
+    let taskNamePaddingLeft = getParamsFromSearch('taskNamePaddingLeft') ?? 15;
     const initChartStartX = 1, initChartStartY = 50;
     // time scale height
     const timeScaleHeight = getParamsFromSearch('timeScaleHeight') ?? 20;
@@ -125,15 +125,17 @@
     const barMargin = debug ? 10 : (getParamsFromSearch('barMargin') ?? 1);
     // scroll speed [1, 100]
     const scrollSpeed = getParamsFromSearch('scrollSpeed') ?? 35;
+    // includeHoliday hell no!!!
+    const includeHoliday = getParamsFromSearch('includeHoliday') ?? false;
     // if use local data
     const useLocal = getParamsFromSearch('useLocal');
     // Define tasks for the Gantt chart
     const tasks = useLocal ? getLocal() : [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
       { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
-      { name: "Task 3", start: 6, duration: 2, resource: "Bob", fillColor: getRandomColor() },
-      { name: "Task 4", start: 8, duration: 2, resource: "Bob", fillColor: getRandomColor() },
-      { name: "Task 5", start: 10, duration: 8, resource: "Uni", fillColor: getRandomColor() },
+      { name: "Task 3 long long long", start: 7, duration: 1, resource: "Bob", fillColor: getRandomColor() },
+      { name: "Task 4", start: 8, duration: 2, resource: "Bose", fillColor: getRandomColor() },
+      { name: "Task 5", start: 10, duration: 8, resource: "Uno", fillColor: getRandomColor() },
       {}
       // Add more tasks as needed
     ];
@@ -545,8 +547,8 @@
         const taskName = new zrender.Text({
           style: {
             text: task.name,
-            x: 0 + taskNamePaddingLeft,
-            y: 0 + barHeight / 2 - 12 / 2,
+            x: taskNamePaddingLeft,
+            y: barHeight / 2 - 12 / 2,
             textFill: "white",
             textAlign: "left",
             textVerticalAlign: "middle",
@@ -554,8 +556,26 @@
           },
           cursor: 'move'
         });
-        group.add(taskName);
-
+        
+        // Create a text for duration
+        const taskDurationText = new zrender.Text({
+          style: {
+            text: `${getRealDuration(task)}天`,
+            x: width - taskNamePaddingLeft,
+            y: barHeight / 2 - 12 / 2,
+            textFill: "white",
+            textAlign: "left",
+            textVerticalAlign: "middle",
+            fill: "white"
+          },
+          cursor: 'move'
+        });
+        const { width: taskDurationTextWidth } = taskDurationText.getBoundingRect()
+        taskDurationText.attr({
+          style: {
+            x: width - taskDurationTextWidth - taskNamePaddingLeft
+          }
+        })
         // Create a text shape for resource assignment
         const resourceText = new zrender.Text({
           style: {
@@ -566,6 +586,18 @@
           },
           cursor: 'normal'
         });
+
+        // 如果放不下，显示到resourceText上去，隐藏taskName
+        if (taskName.getBoundingRect().width + taskDurationTextWidth + taskNamePaddingLeft * 2 > width) {
+          resourceText.attr({
+            style: {
+              text: task.name
+            }
+          })
+          taskName.hide();
+        }
+        group.add(taskName);
+        group.add(taskDurationText);
         group.add(resourceText);
 
         // drag logic
