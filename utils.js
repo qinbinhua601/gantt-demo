@@ -31,3 +31,29 @@ function getLocal(key = 'tasks') {
     return defaultValues[key]
   }
 }
+
+function getRandomColor() {
+  // Generate random values for red, green, and blue components
+  const r = Math.floor(Math.random() * 256);
+  const g = Math.floor(Math.random() * 256);
+  const b = Math.floor(Math.random() * 256);
+
+  // Convert values to hexadecimal and format the color
+  const hexColor = '#' + r.toString(16).padStart(2, '0') +
+    g.toString(16).padStart(2, '0') +
+    b.toString(16).padStart(2, '0');
+
+  return hexColor;
+}
+
+// deprecated
+function getTimeScaleWidthByTasks(tasks) {
+  let min = 1000000000,
+    max = -1;
+  tasks.forEach((task) => {
+    const { start = 0, duration = 0 } = task;
+    min = Math.min(start, min);
+    max = Math.max(max, start + duration);
+  });
+  return max - min;
+}

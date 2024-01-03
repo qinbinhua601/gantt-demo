@@ -55,7 +55,7 @@
     <button id="clear-milestone-button">清空里程</button>
   </div>
   <!-- Create a container for the ZRender instance -->
-  <div id="zrender-container" style="height: 800px;"></div>
+  <div id="zrender-container" style="height: 700px;"></div>
   <!-- popup 提示框 -->
   <div class="popup-wrapper">
     <div class="popup-wrapper__body">
@@ -68,12 +68,15 @@
       </form>
     </div>
   </div>
+  <script src="./popup.js"></script>
   <script src="./hachure.js"></script>
   <script src="./holidays.js"></script>
   <script src="./controls.js"></script>
   <script src="./utils.js"></script>
+  <script src="./flag.js"></script>
+  <script src="./task.js"></script>
+  <script src="./today.js"></script>
   <script>
-    // console.log(hachureLines)
     let currentGroup = null;
     let lastHandleMove = null;
     const debug = false;
@@ -89,8 +92,20 @@
     let halfUnitWidth = unitWidth / 2;
     // taskName paddingLeft
     let taskNamePaddingLeft = getParamsFromSearch('taskNamePaddingLeft') ?? 30;
+    const initChartStartX = 1, initChartStartY = 50;
+    // time scale height
+    const timeScaleHeight = getParamsFromSearch('timeScaleHeight') ?? 20;
+    // milestone top height
+    const milestoneTopHeight = getParamsFromSearch('milestoneTopHeight') ?? 20;
+    // taskBar height
+    const barHeight = getParamsFromSearch('barHeight') ?? 30;
+    // taskBar margin bottom
+    const barMargin = debug ? 10 : (getParamsFromSearch('barMargin') ?? 1);
+    // scroll speed [1, 100]
+    const scrollSpeed = getParamsFromSearch('scrollSpeed') ?? 35;
+    // if use local data
     const useLocal = getParamsFromSearch('useLocal');
-    // Define tasks for the Gantt chart`
+    // Define tasks for the Gantt chart
     const tasks = useLocal ? getLocal() : [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
       { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
@@ -107,219 +122,18 @@
       { start: 10, name: '提测' }
     ];
     window.mileStones = mileStones;
-    function createFlag() {
-      const flag = zrender.path.createFromString('M3.333,10v 5 c0,0.184 -0.149, 0.333 -0.333, 0.333 h-0.667A0.333, 0.333 0 0 1 2, 15 V 1.333 c0, -0.368 0.298, -0.666 0.667, -0.666 h 11.525 a 0.667, 0.667 0 0 1 0.581, 0.994 L 12.76, 5.233 a 0.333, 0.333 0 0 0 0.002, 0.33 L 14.753, 9 A 0.667, 0.667 0 0 1 14.176, 10 H 3.333z', {
-        style: {
-          fill: '#F54A45'
-        }
-      })
-      return flag;
-    }
-    function createFlagGroup(gridX, halfUnitWidth, chartStartY, timeScaleHeight) {
-      const flagGroup = new zrender.Group()
-      const flag = createFlag()
-      const { width: fWidth, height: fHeight } = flag.getBoundingRect()
-      flag.attr('position', [gridX + halfUnitWidth - fWidth / 2, (chartStartY - timeScaleHeight) + timeScaleHeight / 2 - fHeight / 2])
-      const flagHoveredCircle = new zrender.Circle({
-        shape: {
-          cx: gridX + halfUnitWidth + 1,
-          cy: (chartStartY - timeScaleHeight) + timeScaleHeight / 2,
-          r: 12
-        },
-        style: {
-          fill: 'rgba(211, 211, 211, 0.5)'
-        }
-      })
-      flagGroup.add(flagHoveredCircle)
-      flagGroup.add(flag)
-      flagGroup.hide()
-      zr.add(flagGroup)
-      return [flagGroup, {
-        flag,
-        flagHoveredCircle
-      }]
-    }
-    function getRandomColor() {
-      // Generate random values for red, green, and blue components
-      const r = Math.floor(Math.random() * 256);
-      const g = Math.floor(Math.random() * 256);
-      const b = Math.floor(Math.random() * 256);
-
-      // Convert values to hexadecimal and format the color
-      const hexColor = '#' + r.toString(16).padStart(2, '0') +
-        g.toString(16).padStart(2, '0') +
-        b.toString(16).padStart(2, '0');
-
-      return hexColor;
-    }
-
-    function getTimeScaleWidthByTasks(tasks) {
-      let min = 1000000000,
-        max = -1;
-      tasks.forEach((task) => {
-        const { start = 0, duration = 0 } = task;
-        min = Math.min(start, min);
-        max = Math.max(max, start + duration);
-      });
-      return max - min;
-    }
-
-    function getLeftHandleBar(w, box, taskBarRect) {
-      const { height: barHeight, width } = taskBarRect;
-      const leftBar = new zrender.Rect({
-        name: "leftBar",
-        style: {
-          fill: `rgba(0, 255, 0, ${debug ? 1 : 0})`,
-          lineWidth: 1
-        },
-        shape: {
-          width: w,
-          height: barHeight
-        },
-        draggable: "horizontal",
-        cursor: "ew-resize",
-        z: 1
-      });
-      leftBar.attr({
-        position: [box.x, box.y],
-        shape: {
-          x: -w / 2,
-          y: 0
-        }
-      });
-      let dragStartX = 0;
-      let oldX = 0;
-      let oldWidth = 0;
-      leftBar.on("dragstart", function (e) {
-        this.parent.resizing = true;
-        dragStartX = e.event.zrX;
-        const taskBar = this.taskBar;
-        oldWidth = taskBar.shape.width;
-        oldX = taskBar.shape.x;
-        currentGroup = this.parent;
-      });
-      leftBar.on("drag", function (e) {
-        const deltaX = e.event.zrX - dragStartX;
-        const taskBar = this.taskBar;
-        taskBar.attr({
-          shape: {
-            x: oldX + deltaX,
-            width: oldWidth - deltaX
-          }
-        });
-      });
-      leftBar.on("dragend", function (e) {
-        const deltaX = e.event.zrX - dragStartX;
-        const dir = deltaX < 0 ? -1 : 1;
-        const delta = Math.abs(deltaX);
-        const mod = delta % unitWidth;
-        const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
-        console.log(offsetX)
-        const task = tasks[this.parent.index];
-        task.start += offsetX;
-        task.duration -= offsetX;
-        syncLocal();
-        currentGroup = null;
-        // Redraw the chart after dragging
-        redrawChart(true);
-      });
-      return leftBar;
-    }
-
-    function getRightHandleBar(w, box, taskBarRect) {
-      const { height: barHeight, width } = taskBarRect;
-      const rightBar = new zrender.Rect({
-        style: {
-          fill: `rgba(255, 192, 203, ${debug ? 1 : 0})`,
-          lineWidth: 1
-        },
-        shape: {
-          width: w,
-          height: barHeight
-        },
-        draggable: "horizontal",
-        cursor: "ew-resize",
-        z: 1
-      });
-      rightBar.attr({
-        position: [box.x + width, box.y],
-        shape: {
-          x: -w / 2,
-          y: 0
-        }
-      });
-      let dragStartX = 0;
-      let oldX = 0;
-      let oldWidth = 0;
-      rightBar.on("dragstart", function (e) {
-        this.parent.resizing = true;
-        dragStartX = e.event.zrX;
-        const taskBar = this.taskBar;
-        oldWidth = taskBar.shape.width;
-        oldX = taskBar.shape.x;
-        console.log(currentGroup)
-        currentGroup = this.parent
-      });
-      rightBar.on("drag", function (e) {
-        const deltaX = e.event.zrX - dragStartX;
-        const taskBar = this.taskBar;
-        taskBar.attr({
-          shape: {
-            width: oldWidth + deltaX
-          }
-        });
-      });
-      rightBar.on("dragend", function (e) {
-        const deltaX = e.event.zrX - dragStartX;
-        const dir = deltaX < 0 ? -1 : 1;
-        const delta = Math.abs(deltaX);
-        const mod = delta % unitWidth;
-        const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
-        const task = tasks[this.parent.index];
-        task.duration += offsetX;
-        syncLocal();
-        currentGroup = null
-        // Redraw the chart after dragging
-        redrawChart(true);
-      });
-      return rightBar;
-    }
-
-    function drawTodayLine(chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin) {
-      const todayLine = new zrender.Rect({
-        shape: {
-          x: chartStartX + todayOffset * unitWidth - 1 + halfUnitWidth,
-          y: chartStartY,
-          width: 2,
-          height: tasks.length * (barHeight + barMargin)
-        },
-        style: {
-          fill: "#2955c9"
-        },
-        z: 1
-      });
-      const circle = new zrender.Circle({
-        shape: {
-          cx: chartStartX + todayOffset * unitWidth + halfUnitWidth,
-          cy: chartStartY - timeScaleHeight + timeScaleHeight + 2,
-          r: 3
-        },
-        style: {
-          fill: "#2955c9"
-        }
-      })
-      zr.add(todayLine);
-      zr.add(circle);
-    }
-
     const todayOffset = Math.floor((+new Date() - +new Date('2024-01-01')) / (60 * 60 * 24 * 1000))
+
     // scroll horizontally
+    // 默认设置到今天左边一格
     let lastScrollX = 0 + (todayOffset - 1) * unitWidth, lastScrollY = 0;
+    // 显示scrollX的值
     const $lastScrollXSpan = document.querySelector('#last-scroll-x');
     zr.on('mousewheel', function (e) {
       e.event.preventDefault();
       // console.log(e.event, e.event.wheelDeltaX);
-      lastScrollX -= e.event.wheelDeltaX;
+      // set speed for the scroll
+      lastScrollX -= Math.floor(e.event.wheelDeltaX * 0.01 * scrollSpeed);
       redrawChart(true, lastScrollX, 0);
       $lastScrollXSpan.innerText = lastScrollX;
     })
@@ -328,25 +142,14 @@
       zr.resize();
       redrawChart(true);
     });
-    const initChartStartX = 1, initChartStartY = 50;
+
     function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
-      // time scale height
-      const timeScaleHeight = getParamsFromSearch('timeScaleHeight') ?? 20;
-      // milestone top height
-      const milestone_top_height = getParamsFromSearch('milestone_top_height') ?? 20;
       // margin left to the container
       const chartStartX = initChartStartX - scrollX;
       // margin top to the container
-      const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestone_top_height) - scrollY;
-      // taskBar height
-      const barHeight = getParamsFromSearch('barHeight') ?? 30;
-
-      // taskBar margin bottom
-      const barMargin = debug ? 10 : 1;
-
+      const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestoneTopHeight) - scrollY;
+      // clear the painter
       clear && zr.clear();
-
-      // const timeScaleWidth = getTimeScaleWidthByTasks(tasks);
 
       // hover day grid to add task
       let lastPos
@@ -452,7 +255,6 @@
       zr.on('mousemove', handleMove);
 
       const canvasWidth = zr.getWidth();
-      const canvasHeight = zr.getHeight();
       const timeScaleWidth = Math.ceil((canvasWidth) / unitWidth);
       // Draw time scale
       // MARK: 日期时间轴
@@ -490,13 +292,13 @@
           }
         });
 
-        // draw the date
+        // Draw the date
         if (count < gridLineCount - 1) {
           // MARK: 同一个遍历画「休息日斜线」
           const now = +new Date('2024-01-01');
           const currentDate = now + i * 60 * 1000 * 60 * 24
           const dateInfo = isHoliday(currentDate)
-          // draw the hachure fill
+          // Draw the hachure fill 画斜线
           if (dateInfo.isHoliday) {
             // if (i % 7 == 0 || i % 7 === 1) {
             try {
@@ -590,7 +392,6 @@
       // MARK: 画grid横线
       const gridLineCountY = tasks.length + 1;
 
-      // for (let j = 0; j < gridLineCountY; j++) {
       for (let j = 0; j < 1; j++) {
         const gridY = chartStartY + j * (barHeight + barMargin);
         const gridLineY = new zrender.Line({
@@ -607,7 +408,7 @@
         zr.add(gridLineY);
       }
 
-      // draw today line
+      // Draw today line
       drawTodayLine(chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin);
 
       // Draw milestones
@@ -629,9 +430,9 @@
         const milestone_top = new zrender.Rect({
           shape: {
             x: chartStartX + item.start * unitWidth - 1,
-            y: chartStartY - timeScaleHeight - milestone_top_height,
+            y: chartStartY - timeScaleHeight - milestoneTopHeight,
             width: 10,
-            height: milestone_top_height
+            height: milestoneTopHeight
           },
           style: {
             fill: "rgba(255, 0, 0, 1)"
@@ -641,10 +442,10 @@
         const milestone_top_text = new zrender.Text({
           style: {
             x: chartStartX + item.start * unitWidth - 1 + 10,
-            y: chartStartY - timeScaleHeight - milestone_top_height,
+            y: chartStartY - timeScaleHeight - milestoneTopHeight,
             text: item.name || '里程碑',
             fill: "white",
-            lineHeight: milestone_top_height,
+            lineHeight: milestoneTopHeight,
             fontSize: 12
           },
           z: 1
@@ -793,52 +594,6 @@
     }
 
     redrawChart();
-
-    // popup modal
-    let Popup = {};
-
-    Popup.show = function () {
-      if (!Popup.el) {
-        const $popup = document.querySelector('.popup-wrapper')
-        const $popupBody = document.querySelector('.popup-wrapper__body');
-        const $button = $popup.querySelector('button.modify');
-        const $deleteButton = $popup.querySelector('button.delete');
-
-        $popup.addEventListener('click', function () {
-          Popup.hide();
-        });
-
-        $button.onclick = function (e) {
-          e.preventDefault();
-          const value = this.parentElement.previousElementSibling.value;
-          const index = this.parentElement.previousElementSibling.dataset.index;
-          tasks.splice(index, 1, JSON.parse(value));
-          syncLocal();
-          Popup.hide();
-          redrawChart(true);
-        }
-
-        $deleteButton.onclick = function (e) {
-          e.preventDefault();
-          const index = this.parentElement.previousElementSibling.dataset.index;
-          if (confirm('Are you sure to DELETE the task?')) {
-            tasks.splice(index, 1)
-            syncLocal();
-          }
-          Popup.hide();
-          redrawChart(true);
-        }
-
-        $popupBody.onclick = function (e) { e.stopPropagation(); }
-
-        Popup.el = $popup;
-      }
-
-      Popup.el.style.display = 'flex';
-    }
-    Popup.hide = function () {
-      Popup.el.style.display = 'none';
-    }
   </script>
 </body>
 
