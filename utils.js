@@ -31,10 +31,10 @@ function syncRemote() {
   return false
 }
 
-
+const remoteHost = localStorage.getItem('remoteHost') ? localStorage.getItem('remoteHost') : 'http://localhost:3004'
 
 function recordUpdate(data) {
-  return fetch('http://localhost:3004/record/add', {
+  return fetch(`${remoteHost}/record/add`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -44,7 +44,7 @@ function recordUpdate(data) {
 }
 
 function recordQuery() {
-  return fetch('http://localhost:3004/record/query').then(res => res.json())
+  return fetch(`${remoteHost}/record/query`).then(res => res.json())
 }
 
 const defaultValues = {
