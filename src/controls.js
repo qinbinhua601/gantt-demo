@@ -1,11 +1,11 @@
 import {syncLocal} from './utils'
 
-export function addControls(lastScrollX, lastScrollY, $lastScrollXSpan, redrawChart) {
+export function addControls(setLastScrollX, setLastScrollY, $lastScrollXSpan, redrawChart) {
   const $backToOriginButton = document.querySelector('#back-to-origin-button');
 
   $backToOriginButton?.addEventListener('click', function() {
-    lastScrollX = 0;
-    lastScrollY = 0;
+    setLastScrollX(0);
+    setLastScrollY(0);
     $lastScrollXSpan.innerText = 0;
     redrawChart(true);
   })

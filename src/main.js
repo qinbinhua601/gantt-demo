@@ -62,7 +62,7 @@ window.addEventListener('resize', function() {
   redrawChart(true);
 });
 
-addControls(lastScrollX, lastScrollY, $lastScrollXSpan, redrawChart)
+addControls((val) => lastScrollX = val, (val) => lastScrollY = val, $lastScrollXSpan, redrawChart)
 
 function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
   // margin left to the container
