@@ -54,11 +54,12 @@ export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
     const mod = delta % unitWidth;
     const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
     console.log(offsetX)
-    if (!offsetX) return
     const task = tasks[this.parent.index];
     task.start += offsetX;
     task.duration -= offsetX;
-    syncLocal();
+    if (offsetX) {
+      syncLocal();
+    }
     setCurrentGroup(null);
     // Redraw the chart after dragging
     redrawChart(true);
@@ -116,10 +117,11 @@ export function getRightHandleBar(w, box, taskBarRect, redrawChart) {
     const delta = Math.abs(deltaX);
     const mod = delta % unitWidth;
     const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
-    if (!offsetX) return
     const task = tasks[this.parent.index];
     task.duration += offsetX;
-    syncLocal();
+    if (offsetX) {
+      syncLocal();
+    }
     setCurrentGroup(null);
     // Redraw the chart after dragging
     redrawChart(true);
