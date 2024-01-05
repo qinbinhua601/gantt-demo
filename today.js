@@ -1,4 +1,5 @@
-function drawTodayLine(chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin) {
+import {unitWidth , halfUnitWidth} from './const'
+export function drawTodayLine(zr, chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin, todayOffset) {
   const todayLine = new zrender.Rect({
     shape: {
       x: chartStartX + todayOffset * unitWidth - 1 + halfUnitWidth,

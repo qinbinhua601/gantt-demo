@@ -1,4 +1,8 @@
-function getLeftHandleBar(w, box, taskBarRect) {
+import { isHoliday } from './holidays'
+import { syncLocal } from './utils'
+import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup } from './const'
+
+export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
   const { height: barHeight, width } = taskBarRect;
   const leftBar = new zrender.Rect({
     name: "leftBar",
@@ -15,7 +19,8 @@ function getLeftHandleBar(w, box, taskBarRect) {
     z: 1
   });
   leftBar.attr({
-    position: [box.x, box.y],
+    x: box.x,
+    y: box.y,
     shape: {
       x: -w / 2,
       y: 0
@@ -30,7 +35,7 @@ function getLeftHandleBar(w, box, taskBarRect) {
     const taskBar = this.taskBar;
     oldWidth = taskBar.shape.width;
     oldX = taskBar.shape.x;
-    currentGroup = this.parent;
+    setCurrentGroup(this.parent);
   });
   leftBar.on("drag", function (e) {
     const deltaX = e.event.zrX - dragStartX;
@@ -54,14 +59,14 @@ function getLeftHandleBar(w, box, taskBarRect) {
     task.start += offsetX;
     task.duration -= offsetX;
     syncLocal();
-    currentGroup = null;
+    setCurrentGroup(null);
     // Redraw the chart after dragging
     redrawChart(true);
   });
   return leftBar;
 }
 
-function getRightHandleBar(w, box, taskBarRect) {
+export function getRightHandleBar(w, box, taskBarRect, redrawChart) {
   const { height: barHeight, width } = taskBarRect;
   const rightBar = new zrender.Rect({
     style: {
@@ -77,7 +82,8 @@ function getRightHandleBar(w, box, taskBarRect) {
     z: 1
   });
   rightBar.attr({
-    position: [box.x + width, box.y],
+    x: box.x + width,
+    y: box.y,
     shape: {
       x: -w / 2,
       y: 0
@@ -93,7 +99,7 @@ function getRightHandleBar(w, box, taskBarRect) {
     oldWidth = taskBar.shape.width;
     oldX = taskBar.shape.x;
     console.log(currentGroup)
-    currentGroup = this.parent
+    setCurrentGroup(this.parent);
   });
   rightBar.on("drag", function (e) {
     const deltaX = e.event.zrX - dragStartX;
@@ -114,7 +120,7 @@ function getRightHandleBar(w, box, taskBarRect) {
     const task = tasks[this.parent.index];
     task.duration += offsetX;
     syncLocal();
-    currentGroup = null
+    setCurrentGroup(null);
     // Redraw the chart after dragging
     redrawChart(true);
   });
@@ -125,7 +131,7 @@ const taskStartDate = +new Date('2024-01-01')
 const taskDayCount = 60 * 60 * 24 * 1000
 
 // 获取天数
-function getRealDuration(task) {
+export function getRealDuration(task, includeHoliday) {
   const { start, duration } = task;
   if (includeHoliday) return task.duration;
   let res = 0;

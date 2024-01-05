@@ -2,7 +2,7 @@
  * https://juejin.cn/post/7185775310242381879
  * https://timor.tech/api/holiday/
  */
-window.holidays = {
+const holidays = {
   "01-01": {
     "holiday": true,
     "name": "元旦",
@@ -256,7 +256,7 @@ window.holidays = {
   }
 }
 
-function isHoliday(dateString) {
+export function isHoliday(dateString) {
   const d = new Date(dateString);
   const month = (d.getMonth() + 1 + '');
   const monthWithPadding = month.padStart(2, '0');

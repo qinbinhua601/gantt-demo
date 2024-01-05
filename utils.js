@@ -1,10 +1,12 @@
-function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
+import { view } from './const'
+
+export function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
   const params = new URLSearchParams((location.search));
   return (params.get(key) && autoConvert) ? Number(params.get(key)) : params.get(key);
 }
 
 // sync tasks and mileStones data to localStorage
-function syncLocal() {
+export function syncLocal() {
   // 同步远端开启
   if(syncRemote()) return
   if (!getParamsFromSearch('useLocal')) return;
@@ -18,7 +20,7 @@ function syncLocal() {
     }
   })
 }
-
+window.syncLocal = syncLocal
 let timer = null
 
 function syncRemote() {
@@ -58,7 +60,7 @@ const defaultValues = {
   'mileStones': []
 }
 
-function getLocal(key = 'tasks') {
+export function getLocal(key = 'tasks') {
   try {
     const res = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : defaultValues[key];
     return res;
@@ -68,7 +70,7 @@ function getLocal(key = 'tasks') {
   }
 }
 
-function getRandomColor() {
+export function getRandomColor() {
   // Generate random values for red, green, and blue components
   const r = Math.floor(Math.random() * 256);
   const g = Math.floor(Math.random() * 256);
@@ -82,13 +84,7 @@ function getRandomColor() {
   return hexColor;
 }
 
-function getFromLocalAndDelete(key) {
-  const result = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : null;
-  localStorage.removeItem(key);
-  return result;
-}
-
-function initData() {
+export function initData(zr, redrawChart) {
   // 先不展示画布，获取初始化数据以后展示
   zr.dom.hidden = true
   recordQuery()
@@ -120,6 +116,7 @@ function saveToRemote(saveView) {
     ...viewObj
   })
 }
+window.saveToRemote = saveToRemote
 
 function saveToLocal(view) {
   Object.keys(defaultValues).forEach(key => {
@@ -132,3 +129,4 @@ function saveToLocal(view) {
     }
   })
 }
+window.saveToLocal = saveToLocal

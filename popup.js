@@ -1,5 +1,5 @@
 // popup modal
-let Popup = {};
+export const Popup = {};
 
 Popup.show = function () {
   if (!Popup.el) {
@@ -37,7 +37,7 @@ Popup.show = function () {
     $copyButton.onclick = function (e) {
       e.preventDefault();
       const index = Number(this.parentElement.previousElementSibling.dataset.index);
-      const curTask = {...tasks[index], duration: 1 };
+      const curTask = { ...tasks[index], duration: 1 };
       tasks.splice(index + 1, 0, curTask);
       console.log(tasks[index])
       syncLocal();
@@ -55,3 +55,5 @@ Popup.show = function () {
 Popup.hide = function () {
   Popup.el.style.display = 'none';
 }
+
+export default Popup;

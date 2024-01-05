@@ -19,7 +19,7 @@ function rotateLines(lines, center, degrees) {
 function areSamePoints(p1, p2) {
   return p1[0] === p2[0] && p1[1] === p2[1];
 }
-function hachureLines(polygons, hachureGap, hachureAngle, hachureStepOffset = 1) {
+export function hachureLines(polygons, hachureGap, hachureAngle, hachureStepOffset = 1) {
   const angle = hachureAngle;
   const gap = Math.max(hachureGap, 0.1);
   const polygonList = (polygons[0] && polygons[0][0] && (typeof polygons[0][0] === 'number')) ? [polygons] : polygons;
@@ -144,4 +144,5 @@ function straightHachureLines(polygons, gap, hachureStepOffset) {
   }
   return lines;
 }
+
 window.hachureLines = hachureLines;

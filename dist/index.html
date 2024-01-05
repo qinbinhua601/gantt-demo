@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="/zrender.min.js"></script>
+    <title>gantt</title>
+    <style>
+      #zrender-container,
+      #off-screen {
+        outline: 1px solid red;
+        /* margin: 20px 0 0 150px; */
+      }
+  
+      .popup-wrapper {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background-color: rgba(255, 0, 0, 0.3);
+        /* display: flex; */
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        display: none;
+      }
+  
+      .popup-wrapper .popup-wrapper__body {
+        width: 337px;
+      }
+      .popup-wrapper .popup-wrapper__body .button-wrapper button {
+        display: block;
+      }
+  
+      .popup-wrapper .popup-wrapper__body textarea {
+        display: block;
+        width: 100%;
+      }
+  
+      .popup-wrapper .popup-wrapper__body .button-wrapper {
+        display: flex;
+        justify-content: space-between;
+      }
+  
+      .popup-wrapper .popup-wrapper__body .button-wrapper button {
+        width: 100px;
+        height: 32px;
+        cursor: pointer;
+      }
+      .popup-wrapper .popup-wrapper__body .button-wrapper button.delete:hover {
+        background-color: #f00;
+        outline: none;
+        border-color: #f00;
+        color: #fff;
+      }
+      .popup-wrapper .popup-wrapper__body .button-wrapper button.copy:hover {
+        background-color: #86a5e5;
+        outline: none;
+        border-color: #86a5e5;
+        color: #fff;
+      }
+      .popup-wrapper .popup-wrapper__body .button-wrapper button.modify:hover {
+        background-color: #1f8a6f;
+        outline: none;
+        border-color: #1f8a6f;
+        color: #fff;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-8Yl80eC5.js"></script>
+  </head>
+  <body>
+    <div class="control-item">
+      <!-- Reset the scroll button -->
+      <button id="back-to-origin-button">重置滚动</button>
+      <span id="last-scroll-x">0</span>
+    </div>
+    <div class="control-item" style="display: none;">
+      <!-- clear all tasks -->
+      <button id="clear-button">清空任务</button>
+      <button id="clear-milestone-button">清空里程</button>
+    </div>
+    <!-- Create a container for the ZRender instance -->
+    <div id="zrender-container" style="height: 700px;"></div>
+    <!-- popup 提示框 -->
+    <div class="popup-wrapper">
+      <div class="popup-wrapper__body">
+        <form>
+          <textarea name="taskvalue" cols="30" rows="10" id="current-task" data-index="0"></textarea>
+          <div class="button-wrapper">
+            <button class="modify">修改</button>
+            <button class="delete">删除</button>
+            <button class="copy">复制</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
+
