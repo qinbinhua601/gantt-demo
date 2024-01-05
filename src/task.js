@@ -147,7 +147,7 @@ export function getRealDuration(task, includeHoliday) {
 
 export function getTaskBarMoveLine (chartStartX, chartStartY, lastScrollX, timeScaleWidth, posY) {
   // 如果越界，不要画蓝色底线
-  if (posY < 0 || posY > tasks.length - 2) return null
+  if (posY < 0 || posY > tasks.length - 1) return null
   const bottomLine = new zrender.Rect({
     shape: {
       x: chartStartX + lastScrollX,
