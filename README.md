@@ -39,3 +39,9 @@
 - [x]  标识当天的垂直线
 - [x]  性能
     - [x]  只画视口内的taskBar
+- [x]  工程
+    - [x]  迁移到vite
+    - [x]  修改打包方式
+    - [x]  修改部署方式自动化
+        - [x]  github-pages
+        - [x]  vercel

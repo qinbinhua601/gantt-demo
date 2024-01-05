@@ -23,9 +23,6 @@
         "url": "https://github.com/qinbinhua601/gantt-demo/issues"
     },
     "dependencies": {
-        "cors": "^2.8.5",
-        "express": "^4.18.2",
-        "mongodb": "^6.3.0",
         "vite": "^5.0.11",
         "zrender": "^5.4.4"
     },
