@@ -5,6 +5,8 @@ function getParamsFromSearch(key = 'unitWidth') {
 
 // sync tasks and mileStones data to localStorage
 function syncLocal() {
+  // 同步远端开启
+  if(syncRemote()) return
   if (!getParamsFromSearch('useLocal')) return;
   Object.keys(defaultValues).forEach(key => {
     const lastLocalStorage = localStorage.getItem(key);
@@ -15,6 +17,34 @@ function syncLocal() {
       localStorage.setItem(key, lastLocalStorage);
     }
   })
+}
+
+function syncRemote() {
+  // 如果开启了
+  if (getParamsFromSearch('useRemote')) {
+    const data = { tasks: window.tasks, mileStones: window.mileStones }
+    recordUpdate(data).then(res => {
+      console.log('recordUpdate', res)
+    })
+    return true
+  }
+  return false
+}
+
+
+
+function recordUpdate(data) {
+  return fetch('http://localhost:3004/record/add', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+}
+
+function recordQuery() {
+  return fetch('http://localhost:3004/record/query').then(res => res.json())
 }
 
 const defaultValues = {
@@ -46,14 +76,51 @@ function getRandomColor() {
   return hexColor;
 }
 
-// deprecated
-function getTimeScaleWidthByTasks(tasks) {
-  let min = 1000000000,
-    max = -1;
-  tasks.forEach((task) => {
-    const { start = 0, duration = 0 } = task;
-    min = Math.min(start, min);
-    max = Math.max(max, start + duration);
-  });
-  return max - min;
+function getFromLocalAndDelete(key) {
+  const result = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : null;
+  localStorage.removeItem(key);
+  return result;
+}
+
+function initData() {
+  // 先不展示画布，获取初始化数据以后展示
+  zr.dom.hidden = true
+  recordQuery()
+    .then((res) => {
+      const { data } = res
+      console.log(data)
+      window.tasks.length = 0;
+      window.mileStones.length = 0;
+      // const tasks = getFromLocalAndDelete('tasks') || data?.tasks
+      // const mileStones = getFromLocalAndDelete('mileStones') || data?.mileStones
+      if (data?.tasks || data?.mileStones) {
+        window.tasks.push(...data.tasks);
+        window.mileStones.push(...data.mileStones);
+      } else {
+        if (!data) {
+          window.tasks.push({})
+        }
+      }
+      redrawChart(true);
+      zr.dom.hidden = false;
+    })
+}
+
+function saveToRemote() {
+  recordUpdate({
+    tasks: window.tasks,
+    mileStones: window.mileStones
+  })
+}
+
+function saveToLocal() {
+  Object.keys(defaultValues).forEach(key => {
+    const lastLocalStorage = localStorage.getItem(key);
+    try {
+      localStorage.setItem(key, JSON.stringify(window[key]));
+    } catch (error) {
+      console.error('fail to syncLocal')
+      localStorage.setItem(key, lastLocalStorage);
+    }
+  })
 }

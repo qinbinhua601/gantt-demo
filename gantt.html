@@ -28,9 +28,16 @@
       display: none;
     }
 
-    .popup-wrapper .popup-wrapper__body .button-wrapper button,
-    textarea {
+    .popup-wrapper .popup-wrapper__body {
+      width: 337px;
+    }
+    .popup-wrapper .popup-wrapper__body .button-wrapper button {
       display: block;
+    }
+
+    .popup-wrapper .popup-wrapper__body textarea {
+      display: block;
+      width: 100%;
     }
 
     .popup-wrapper .popup-wrapper__body .button-wrapper {
@@ -129,8 +136,13 @@
     const includeHoliday = getParamsFromSearch('includeHoliday') ?? false;
     // if use local data
     const useLocal = getParamsFromSearch('useLocal');
+    // if use remote data
+    const useRemote = getParamsFromSearch('useRemote');
+    if (useRemote) {
+      initData()
+    }
     // mockTaskSize for test only enabled when useLocal is false
-    const mockTaskSize = !useLocal && getParamsFromSearch('mockTaskSize') ? Number(getParamsFromSearch('mockTaskSize')) : 5;
+    const mockTaskSize = !useRemote && !useLocal && getParamsFromSearch('mockTaskSize') ? Number(getParamsFromSearch('mockTaskSize')) : 5;
     // Define tasks for the Gantt chart
     const tasks = useLocal ? getLocal() : [
       { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
