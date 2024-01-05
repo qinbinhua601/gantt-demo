@@ -5,7 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>gantt</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/zrender/5.4.4/zrender.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/zrender/5.4.4/zrender.min.js"></script> -->
+  <script src="./zrender.min.js"></script>
   <style>
     #zrender-container,
     #off-screen {
@@ -138,7 +139,10 @@
     const useLocal = getParamsFromSearch('useLocal');
     // if use remote data
     const useRemote = getParamsFromSearch('useRemote');
+    // query view
+    const view = getParamsFromSearch('view', false) ?? ''
     if (useRemote) {
+      document.title += ' (Remote)'
       initData()
     }
     // mockTaskSize for test only enabled when useLocal is false
@@ -650,6 +654,7 @@
           const delta = Math.abs(deltaX);
           const mod = delta % unitWidth;
           const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
+          if (!offsetX) return
           task.start += offsetX;
           syncLocal();
           currentGroup = null

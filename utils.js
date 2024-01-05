@@ -1,6 +1,6 @@
-function getParamsFromSearch(key = 'unitWidth') {
+function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
   const params = new URLSearchParams((location.search));
-  return params.get(key) ? Number(params.get(key)) : params.get(key);
+  return (params.get(key) && autoConvert) ? Number(params.get(key)) : params.get(key);
 }
 
 // sync tasks and mileStones data to localStorage
@@ -19,13 +19,18 @@ function syncLocal() {
   })
 }
 
+let timer = null
+
 function syncRemote() {
   // 如果开启了
   if (getParamsFromSearch('useRemote')) {
     const data = { tasks: window.tasks, mileStones: window.mileStones }
-    recordUpdate(data).then(res => {
-      console.log('recordUpdate', res)
-    })
+    timer && clearTimeout(timer)
+    timer = setTimeout(() => {
+      recordUpdate(data).then(res => {
+        console.log('recordUpdate', res)
+      })
+    }, 200);
     return true
   }
   return false
@@ -39,12 +44,13 @@ function recordUpdate(data) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify({ view, ...data })
   })
 }
 
 function recordQuery() {
-  return fetch(`${remoteHost}/record/query`).then(res => res.json())
+  console.log('current view', view);
+  return fetch(`${remoteHost}/record/query${view ? `?view=${view}` : ''}`).then(res => res.json())
 }
 
 const defaultValues = {
@@ -106,14 +112,16 @@ function initData() {
     })
 }
 
-function saveToRemote() {
+function saveToRemote(saveView) {
+  const viewObj = saveView ? { view: `${saveView}` } : {}
   recordUpdate({
     tasks: window.tasks,
-    mileStones: window.mileStones
+    mileStones: window.mileStones,
+    ...viewObj
   })
 }
 
-function saveToLocal() {
+function saveToLocal(view) {
   Object.keys(defaultValues).forEach(key => {
     const lastLocalStorage = localStorage.getItem(key);
     try {

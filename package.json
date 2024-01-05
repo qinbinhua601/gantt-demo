@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "server": "node server/server.js",
-    "db": "mongod --dbpath /usr/local/mongodb/data --logpath /usr/local/mongodb/log/qin.log --fork"
+    "dev": "browser-sync start --server --files 'css/*.css,views/*.js,templates/*.html,index.html' --port '3002'"
   },
   "repository": {
     "type": "git",
