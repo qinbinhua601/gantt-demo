@@ -1,5 +1,5 @@
 {
   "routes": [
-    { "src": "/", "dest": "/gantt.html" }
+    { "src": "/", "dest": "/gantt-demo/index.html" }
   ]
 }
