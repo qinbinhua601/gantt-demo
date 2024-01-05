@@ -1,5 +1,8 @@
 {
-  "routes": [
-    { "src": "/", "dest": "/gantt-demo/index.html" }
+  "rewrites": [
+    {
+      "source": "/gantt-demo/:match*",
+      "destination": "/:match*"
+    }
   ]
 }
