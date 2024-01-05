@@ -1,5 +1,0 @@
-{
-  "routes": [
-    { "src": "/", "dest": "/gantt.html" }
-  ]
-}
