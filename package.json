@@ -4,6 +4,7 @@
     "description": "",
     "main": "index.js",
     "homepage": "https://qinbinhua601.github.io/gantt-demo/",
+    "type": "module",
     "scripts": {
         "dev2": "browser-sync start --server --files 'css/*.css,views/*.js,templates/*.html,index.html' --port '3002'",
         "dev": "vite",

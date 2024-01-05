@@ -30,7 +30,9 @@ function syncRemote() {
     timer && clearTimeout(timer)
     timer = setTimeout(() => {
       recordUpdate(data).then(res => {
-        console.log('recordUpdate', res)
+        if (res.status === 0) {
+          console.log('recordUpdate成功', res)
+        }
       })
     }, 200);
     return true
@@ -47,7 +49,7 @@ function recordUpdate(data) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ view, ...data })
-  })
+  }).then(res => res.json())
 }
 
 function recordQuery() {

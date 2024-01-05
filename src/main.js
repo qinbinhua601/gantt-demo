@@ -4,7 +4,7 @@ import { isHoliday } from './holidays'
 import { addControls } from './controls'
 import { syncLocal, getRandomColor, getLocal, initData } from './utils'
 import { createFlagGroup } from './flag'
-import { getLeftHandleBar, getRightHandleBar, getRealDuration } from './task'
+import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine } from './task'
 import { drawTodayLine } from './today'
 import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup } from './const'
 
@@ -35,10 +35,11 @@ const tasks = useLocal ? getLocal() : [
   // Add more tasks as needed
 ];
 
+const lastTask = tasks.pop();
 while(tasks.length > 1 && tasks.length < mockTaskSize) {
-  const lastTask = tasks.pop();
-  tasks.push(...[...tasks, lastTask]);
+  tasks.push(...tasks.map(item => ({...item})));
 }
+tasks.push(lastTask)
 
 window.tasks = tasks;
 
@@ -408,8 +409,8 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
     const group = new zrender.Group({
       x,
       y,
-      // draggable: true  // Enable draggable for the group
-      draggable: "horizontal", // Enable draggable for the group
+      draggable: true  // Enable draggable for the group
+      // draggable: "horizontal", // Enable draggable for the group
     });
     // Create a rectangle shape for each task
     const rect = new zrender.Rect({
@@ -511,6 +512,9 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
 
     // drag logic
     let dragStartX = 0;
+    let lastPosY = null;
+    let lastBottomLine = null;
+    // taskBar拖动逻辑
     group.on("dragstart", function (e) {
       if (this.resizing) return;
       dragStartX = e.event.zrX;
@@ -518,6 +522,21 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
     });
     group.on("drag", function (e) {
       if (this.resizing) return;
+      const y = e.event.zrY - chartStartY
+      const posY = Math.floor(y / (barHeight + barMargin))
+      if (lastPosY !== posY) {
+        // console.log('pos', {
+        //   posY
+        // })
+        lastPosY = posY
+        zr.remove(lastBottomLine)
+        const bottomLine = getTaskBarMoveLine(chartStartX, chartStartY, lastScrollX, timeScaleWidth, posY)
+        lastBottomLine = bottomLine
+        bottomLine && zr.add(bottomLine)
+        zr.refresh()
+      } else {
+        // console.log('pos', 'is the same')
+      }
     });
     group.on("dragend", function (e) {
       console.log('dragend')
@@ -530,8 +549,21 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
       const delta = Math.abs(deltaX);
       const mod = delta % unitWidth;
       const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
+      const y = e.event.zrY - chartStartY
+      const posY = Math.floor(y / (barHeight + barMargin))
+      const offsetY = posY - index
       task.start += offsetX;
-      if (offsetX) {
+      if (lastBottomLine && posY !== index) {
+        // console.log('delta', '上下移动位置', {
+        //   old: index,
+        //   new: posY
+        // })
+        // delete current item
+        tasks.splice(index, 1);
+        // move current item to the target pos
+        tasks.splice(posY > index ? posY - 1 : posY, 0, {...task})
+      }
+      if (offsetX || offsetY ) {
         syncLocal();
       }
       setCurrentGroup(null);

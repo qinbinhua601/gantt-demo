@@ -1,6 +1,6 @@
 import { isHoliday } from './holidays'
 import { syncLocal } from './utils'
-import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup } from './const'
+import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin } from './const'
 
 export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
   const { height: barHeight, width } = taskBarRect;
@@ -143,4 +143,23 @@ export function getRealDuration(task, includeHoliday) {
     res++;
   }
   return res
+}
+
+export function getTaskBarMoveLine (chartStartX, chartStartY, lastScrollX, timeScaleWidth, posY) {
+  // 如果越界，不要画蓝色底线
+  if (posY < 0 || posY > tasks.length - 2) return null
+  const bottomLine = new zrender.Rect({
+    shape: {
+      x: chartStartX + lastScrollX,
+      y: chartStartY + (barHeight + barMargin) * posY,
+      width: timeScaleWidth * unitWidth,
+      height: 1
+    },
+    style: {
+      // fill: "lightgray"
+      fill: "blue"
+    },
+    zlevel: 1
+  });
+  return bottomLine
 }
