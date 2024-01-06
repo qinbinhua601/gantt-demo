@@ -19,11 +19,6 @@ const zr = zrender.init(document.getElementById("zrender-container"), {
   renderer: 'canvas'
 });
 
-if (useRemote) {
-  document.title += ' (Remote)'
-  initData(zr, redrawChart)
-}
-
 // Define tasks for the Gantt chart
 const tasks = useLocal ? getLocal() : [
   { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
@@ -592,4 +587,10 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
   })
 }
 window.redrawChart = redrawChart
-!useRemote && redrawChart();
+
+if (useRemote) {
+  document.title += ' (Remote)'
+  initData(zr, redrawChart)
+} else {
+  redrawChart();
+}

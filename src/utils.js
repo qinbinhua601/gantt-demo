@@ -88,7 +88,7 @@ export function getRandomColor() {
 
 export function initData(zr, redrawChart) {
   // 先不展示画布，获取初始化数据以后展示
-  zr.dom.hidden = true
+  zr.dom.style.opacity = 0;
   recordQuery()
     .then((res) => {
       const { data } = res
@@ -106,7 +106,7 @@ export function initData(zr, redrawChart) {
         }
       }
       redrawChart(true);
-      zr.dom.hidden = false;
+      zr.dom.style.opacity = 1;
     })
 }
 
