@@ -592,4 +592,4 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
   })
 }
 window.redrawChart = redrawChart
-redrawChart();
+!useRemote && redrawChart();
