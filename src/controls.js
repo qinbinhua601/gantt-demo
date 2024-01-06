@@ -1,12 +1,13 @@
+import { initLastScrollX } from './const';
 import {syncLocal} from './utils'
 
 export function addControls(setLastScrollX, setLastScrollY, $lastScrollXSpan, redrawChart) {
   const $backToOriginButton = document.querySelector('#back-to-origin-button');
 
   $backToOriginButton?.addEventListener('click', function() {
-    setLastScrollX(0);
+    setLastScrollX(initLastScrollX);
     setLastScrollY(0);
-    $lastScrollXSpan.innerText = 0;
+    $lastScrollXSpan.innerText = initLastScrollX;
     redrawChart(true);
   })
   

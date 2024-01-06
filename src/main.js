@@ -6,13 +6,12 @@ import { syncLocal, getRandomColor, getLocal, initData } from './utils'
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine } from './task'
 import { drawTodayLine } from './today'
-import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup } from './const'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup, initLastScrollX } from './const'
 
 let lastHandleMove = null;
 
-// scroll horizontally
 // 默认设置到今天左边一格
-let lastScrollX = 0 + (todayOffset - 1) * unitWidth, lastScrollY = 0;
+let lastScrollX = 0 + initLastScrollX, lastScrollY = 0;
 
 // Initialize ZRender
 const zr = zrender.init(document.getElementById("zrender-container"), {

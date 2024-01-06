@@ -40,5 +40,8 @@ export const mockTaskSize = !useRemote && !useLocal && getParamsFromSearch('mock
 
 export const todayOffset = Math.floor((+new Date() - +new Date('2024-01-01')) / (60 * 60 * 24 * 1000))
 
+export const initLastScrollX = (todayOffset - 1) * unitWidth
+
 // 显示scrollX的值
 export const $lastScrollXSpan = document.querySelector('#last-scroll-x');
+$lastScrollXSpan.innerText = initLastScrollX;
