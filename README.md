@@ -1,4 +1,16 @@
-## 功能点：
+# 用canvas画的甘特图demo
+
+> 一个基于zrender的甘特图demo
+
+## 怎么启动
+
+### 安装依赖
+`npm install`
+
+### 启动
+`npm run dev`
+
+## 功能点 (roadmap)
 
 - [ ]  taskBar
     - [x]  基本UI
