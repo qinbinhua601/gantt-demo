@@ -57,3 +57,4 @@
     - [x]  修改部署方式自动化
         - [x]  github-pages
         - [x]  vercel
+- [x]  按颜色过滤

@@ -1,5 +1,5 @@
-import { initLastScrollX } from './const';
-import {syncLocal} from './utils'
+import { initLastScrollX, showFilter } from './const';
+import {syncLocal, updateFilterItems} from './utils'
 
 export function addControls(setLastScrollX, setLastScrollY, $lastScrollXSpan, redrawChart) {
   const $backToOriginButton = document.querySelector('#back-to-origin-button');
@@ -30,4 +30,9 @@ export function addControls(setLastScrollX, setLastScrollY, $lastScrollXSpan, re
     syncLocal('mileStones');
     redrawChart(true);
   })
+
+  // 显示过滤器
+  if (showFilter) {
+    updateFilterItems(window.tasks)
+  }
 }

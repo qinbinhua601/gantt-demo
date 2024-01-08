@@ -2,11 +2,11 @@ import Popup from './popup'
 import { hachureLines } from './hachure'
 import { isHoliday } from './holidays'
 import { addControls } from './controls'
-import { syncLocal, getRandomColor, getLocal, initData } from './utils'
+import { syncLocal, getRandomColor, getLocal, initData, updateData } from './utils'
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine } from './task'
 import { drawTodayLine } from './today'
-import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup, initLastScrollX } from './const'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup, initLastScrollX, filter } from './const'
 
 let lastHandleMove = null;
 
@@ -591,5 +591,9 @@ if (useRemote) {
   document.title += ' (Remote)'
   initData(zr, redrawChart)
 } else {
+  // 如果有过滤filter参数，按fillColor过滤
+  if (filter) {
+    updateData('tasks', tasks.filter(item => item.fillColor === filter))
+  }
   redrawChart();
 }

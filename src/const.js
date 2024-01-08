@@ -45,3 +45,9 @@ export const initLastScrollX = (todayOffset - 1) * unitWidth
 // 显示scrollX的值
 export const $lastScrollXSpan = document.querySelector('#last-scroll-x');
 $lastScrollXSpan.innerText = initLastScrollX;
+
+// 过滤色
+export const filter = getParamsFromSearch('filter', false) ?? null;
+
+// 显示过滤控制器
+export const showFilter = getParamsFromSearch('showFilter') ?? false;

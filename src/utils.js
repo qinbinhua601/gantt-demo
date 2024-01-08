@@ -1,4 +1,4 @@
-import { view } from './const'
+import { view, filter, showFilter } from './const'
 
 export function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
   const params = new URLSearchParams((location.search));
@@ -7,6 +7,8 @@ export function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
 
 // sync tasks and mileStones data to localStorage
 export function syncLocal() {
+  // 开始过滤的话，不要同步信息
+  if (filter) return
   // 同步远端开启
   if(syncRemote()) return
   if (!getParamsFromSearch('useLocal')) return;
@@ -93,18 +95,17 @@ export function initData(zr, redrawChart) {
     .then((res) => {
       const { data } = res
       console.log(data)
-      window.tasks.length = 0;
-      window.mileStones.length = 0;
-      // const tasks = getFromLocalAndDelete('tasks') || data?.tasks
-      // const mileStones = getFromLocalAndDelete('mileStones') || data?.mileStones
       if (data?.tasks || data?.mileStones) {
-        window.tasks.push(...data.tasks);
-        window.mileStones.push(...data.mileStones);
+        updateData('tasks', data.tasks.filter(item => filter ? item.fillColor === filter : true))
+        updateData('mileStones', data.mileStones)
+        // window.tasks.push(...data.tasks);
+        // window.mileStones.push(...data.mileStones);
       } else {
         if (!data) {
           window.tasks.push({})
         }
       }
+      updateFilterItems(data?.tasks);
       redrawChart(true);
       zr.dom.style.opacity = 1;
     })
@@ -132,3 +133,35 @@ function saveToLocal(view) {
   })
 }
 window.saveToLocal = saveToLocal
+
+
+export function updateData(key, data) {
+  window[`old_${key}`] = [...window[key]]
+  window[key].length = 0;
+  window[key].push(...[...data])
+}
+
+function onColorPickerClick(e) {
+  console.log(e.target)
+  const params = new URLSearchParams(location.search)
+  if (e.target.dataset?.color) {
+    e.target.dataset.hovered = true
+    params.set('filter', e.target.dataset.color)
+  } else {
+    params.delete('filter')
+  }
+  location.href = '/?' + params.toString()
+}
+
+// 更新过滤选择器
+export function updateFilterItems(data) {
+  if (!showFilter) return
+  if (!data) return
+  const tasks = data
+  const $colorPicker = document.querySelector('#color-picker');
+  console.log('123')
+  $colorPicker.removeEventListener('click', onColorPickerClick);
+  $colorPicker.addEventListener('click', onColorPickerClick);
+  const contents = [...new Set(tasks.map(({ fillColor }) => fillColor)), ''].filter(item => item !== undefined).map(color => `<div data-color="${color}" style="background-color: ${color};"></div>`);
+  $colorPicker.innerHTML = contents.join('');
+}
