@@ -59,7 +59,7 @@ window.addEventListener('resize', function() {
 
 addControls((val) => lastScrollX = val, (val) => lastScrollY = val, $lastScrollXSpan, redrawChart)
 
-function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
+function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
   // margin left to the container
   const chartStartX = initChartStartX - scrollX;
   // margin top to the container
@@ -71,6 +71,11 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
 
   const boundingLeft = Math.floor(lastScrollX / unitWidth);
   const boundingRight = Math.floor((lastScrollX + canvasWidth) / unitWidth);
+  console.log({
+    boundingLeft,
+    boundingRight,
+    clear
+  })
   // hover day grid to add task
   let lastPos
   let lastDayRect
@@ -580,6 +585,16 @@ function redrawChart(clear, scrollX = lastScrollX, scrollY = 0) {
 
     zr.add(group);
   });
+
+  // 如果屏幕里没有任务条，调整到第一个
+  if (!clear && drawTaskBar === 0) {
+    if (tasks.length > 0) {
+      console.log(tasks[0].start);
+      lastScrollX += (tasks[0].start - boundingLeft - 1) * unitWidth;
+      $lastScrollXSpan.innerText
+      redrawChart(true)
+    }
+  }
 
   debug && console.log({
     drawTaskBar
