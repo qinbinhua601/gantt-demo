@@ -59,7 +59,11 @@ window.addEventListener('resize', function() {
 
 addControls((val) => lastScrollX = val, (val) => lastScrollY = val, $lastScrollXSpan, redrawChart)
 
+let isFirst = false
 function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
+  if (!isFirst) {
+    isFirst = true
+  }
   // margin left to the container
   const chartStartX = initChartStartX - scrollX;
   // margin top to the container
@@ -587,7 +591,7 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
   });
 
   // 如果屏幕里没有任务条，调整到第一个
-  if (!clear && drawTaskBar === 0) {
+  if (isFirst && drawTaskBar === 0) {
     if (tasks.length > 0) {
       console.log(tasks[0].start);
       lastScrollX += (tasks[0].start - boundingLeft - 1) * unitWidth;

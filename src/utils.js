@@ -106,7 +106,7 @@ export function initData(zr, redrawChart) {
         }
       }
       updateFilterItems(data?.tasks);
-      redrawChart();
+      redrawChart(true);
       zr.dom.style.opacity = 1;
     })
 }
