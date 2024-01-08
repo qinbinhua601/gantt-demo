@@ -150,7 +150,7 @@ function onColorPickerClick(e) {
   } else {
     params.delete('filter')
   }
-  location.href = '/?' + params.toString()
+  location.href = `${location.pathname}?${params.toString()}`
 }
 
 // 更新过滤选择器
