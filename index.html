@@ -67,8 +67,22 @@
         border-color: #1f8a6f;
         color: #fff;
       }
+
+      #color-picker {
+        display: flex;
+        margin: 5px 0;
+      }
+      #color-picker > div {
+        width: 80px;
+        height: 30px;
+        margin-right: 10px;
+      }
+      #color-picker > div:hover {
+        cursor: pointer;
+        background-color: attr(data-color)!important;
+      }
     </style>
-    <script type="module" crossorigin src="/gantt-demo/assets/index-ycgHpYpx.js"></script>
+    <script type="module" crossorigin src="/gantt-demo/assets/index-sgXMGuqb.js"></script>
   </head>
   <body>
     <div class="control-item">
@@ -81,6 +95,7 @@
       <button id="clear-button">清空任务</button>
       <button id="clear-milestone-button">清空里程</button>
     </div>
+    <div id="color-picker"></div>
     <!-- Create a container for the ZRender instance -->
     <div id="zrender-container" style="height: 700px;"></div>
     <!-- popup 提示框 -->
