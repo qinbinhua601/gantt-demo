@@ -59,10 +59,11 @@ window.addEventListener('resize', function() {
 
 addControls((val) => lastScrollX = val, (val) => lastScrollY = val, $lastScrollXSpan, redrawChart)
 
-let isFirst = false
+let isFirstFlag = true
 function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
-  if (!isFirst) {
-    isFirst = true
+  const isFirst = isFirstFlag
+  if (isFirstFlag) {
+    isFirstFlag = false
   }
   // margin left to the container
   const chartStartX = initChartStartX - scrollX;
