@@ -1,4 +1,4 @@
-import { view, filter, showFilter } from './const'
+import { view, filter, showFilter, useLocal, useRemote } from './const'
 
 export function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
   const params = new URLSearchParams((location.search));
@@ -155,11 +155,12 @@ function onColorPickerClick(e) {
 
 // 更新过滤选择器
 export function updateFilterItems(data) {
+  // 必须有数据存储，否则过滤没有意义，因为颜色是随机的
+  if (!useLocal && !useRemote) return
   if (!showFilter) return
   if (!data) return
   const tasks = data
   const $colorPicker = document.querySelector('#color-picker');
-  console.log('123')
   $colorPicker.removeEventListener('click', onColorPickerClick);
   $colorPicker.addEventListener('click', onColorPickerClick);
   const contents = [...new Set(tasks.map(({ fillColor }) => fillColor)), ''].filter(item => item !== undefined).map(color => `<div data-color="${color}" style="background-color: ${color};"></div>`);

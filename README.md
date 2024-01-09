@@ -10,6 +10,26 @@
 ### 启动
 `npm run dev`
 
+## 支持的query参数
+
+| 参数名 | 默认值 |
+| --- | --- |
+| debug | false |
+| unitWidth | 160 |
+| taskNamePaddingLeft | 15 |
+| timeScaleHeight | 20 |
+| milestoneTopHeight | 20 |
+| barHeight | 30 |
+| barMargin | 1 |
+| scrollSpeed | 30 |
+| includeHoliday | false |
+| useLocal | false |
+| useRemote | false |
+| view | '' |
+| mockTaskSize | 0 |
+| filter | null |
+| showFilter | false |
+
 ## 功能点 (roadmap)
 
 - [ ]  taskBar
@@ -57,4 +77,4 @@
     - [x]  修改部署方式自动化
         - [x]  github-pages
         - [x]  vercel
-- [x]  按颜色过滤
+- [x]  按颜色过滤 (?showFilter=1)
