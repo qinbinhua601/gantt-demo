@@ -4,7 +4,7 @@ import { isHoliday } from './holidays'
 import { addControls } from './controls'
 import { syncLocal, getRandomColor, getLocal, initData, updateData } from './utils'
 import { createFlagGroup } from './flag'
-import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine } from './task'
+import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
 import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup, initLastScrollX, filter } from './const'
 
@@ -135,6 +135,7 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
           },
           z: 1
         })
+
         const lineH = new zrender.Line({
           shape: {
             x1: chartStartX + unitWidth * posX + unitWidth / 2 - 5,
@@ -159,10 +160,12 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
           },
           z: 100
         })
+        // if(!tasks[posY]?.name) {
         dayHoverGroup.add(dayRect)
         dayHoverGroup.add(lineH)
         dayHoverGroup.add(lineV)
         dayHoverGroup.add(rowHoverRect)
+        // }
         lastDayRect && zr.remove(lastDayRect)
         lastDayRect = dayHoverGroup
         zr.add(dayHoverGroup)
@@ -394,7 +397,9 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
     if (!task?.name) return
     // perf: 在视口外跳过
     if (index > Math.floor((canvasHeight - chartStartY) / (barHeight + barMargin))) return
-    if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
+    // if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
+    const showLeftArrow = task.start <= boundingLeft, showRightArrow = (task.start + task.duration) > boundingRight
+
     drawTaskBar++;
     // Calculate position and dimensions
     const x = chartStartX + task.start * unitWidth;
@@ -404,6 +409,19 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
       width,
       height: barHeight
     };
+    const leftArrow = createLeftArrowRect(x, y, task, taskBarRect, showLeftArrow, boundingLeft, function() {
+      lastScrollX = (task.start - 3) * unitWidth;
+      $lastScrollXSpan.innerText = lastScrollX
+      redrawChart(true)
+    })
+    const rightArrow = createRightArrowRect(x, y, task, unitWidth, lastScrollX, canvasWidth, taskBarRect, showRightArrow, boundingRight, function() {
+      lastScrollX = (task.start + task.duration + 3) * unitWidth - canvasWidth;
+      $lastScrollXSpan.innerText = lastScrollX
+      redrawChart(true)
+    })
+    zr.add(leftArrow)
+    zr.add(rightArrow)
+    if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
     // Create a group to hold task elements
     const group = new zrender.Group({
       x,

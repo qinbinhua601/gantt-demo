@@ -1,6 +1,6 @@
 import { isHoliday } from './holidays'
 import { syncLocal } from './utils'
-import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin } from './const'
+import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize } from './const'
 
 export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
   const { height: barHeight, width } = taskBarRect;
@@ -162,4 +162,147 @@ export function getTaskBarMoveLine (chartStartX, chartStartY, lastScrollX, timeS
     zlevel: 1
   });
   return bottomLine
+}
+
+
+export function createLeftArrowRect(x, y, task, taskBarRect, showArrow, boundingLeft, onClickHandler) {
+  const baseZ = 1000
+  const group = new zrender.Group({
+    x: 0 + 5,
+    y: y + (taskBarRect.height - arrowSize) / 2,
+  })
+  const text = new zrender.Text({
+    x: arrowSize * 0.1,
+    style: {
+      text: '←',
+      fill: 'rgb(101, 116, 114)',
+      fontSize: arrowSize * 0.8,
+      textAlign: "center",
+      lineHeight: arrowSize
+    },
+    z: baseZ + 1,
+    name: 'leftArrowText'
+  })
+  group.add(text)
+  const leftArrowRect = new zrender.Rect({
+    shape: {
+      width: arrowSize,
+      height: arrowSize,
+      r: 3
+    },
+    style: {
+      fill: 'rgba(221, 221, 221, 1)'
+    },
+    z: baseZ,
+    name: 'leftArrowRect'
+  })
+  group.on('mouseover', function() {
+    if (boundingLeft >= task.start + task.duration) {
+      const rect = this.childOfName('leftArrowRect')
+      rect.attr({
+        style: {
+          fill: task.fillColor
+        }
+      })
+    }
+    const text = this.childOfName('leftArrowText')
+    text.attr({
+      style: {
+        fill: 'rgb(32, 35, 40)'
+      }
+    })
+  })
+  group.on('mouseout', function() {
+    const rect = this.childOfName('leftArrowRect')
+    rect.attr({
+      style: {
+        fill: 'rgba(221, 221, 221, 1)'
+      }
+    })
+    const text = this.childOfName('leftArrowText')
+    text.attr({
+      style: {
+        fill: 'rgb(101, 116, 114)',
+      }
+    })
+  })
+  group.on('click', onClickHandler)
+  group.add(leftArrowRect)
+  if (!showArrow) {
+    group.eachChild(function (child) {
+      child.hide();
+    });
+  }
+  return group
+}
+
+export function createRightArrowRect(x, y, task, unitWidth, lastScrollX, canvasWidth, taskBarRect, showArrow, boundingRight, onClickHandler) {
+  const baseZ = 1000
+  const group = new zrender.Group({
+    x: x + lastScrollX + canvasWidth - arrowSize - 10 - task.start * unitWidth,
+    y: y + (taskBarRect.height - arrowSize) / 2,
+  })
+  const text = new zrender.Text({
+    x: arrowSize * 0.1,
+    style: {
+      text: '→',
+      fill: 'rgb(101, 116, 114)',
+      fontSize: arrowSize * 0.8,
+      textAlign: "center",
+      lineHeight: arrowSize
+    },
+    z: baseZ + 1,
+    name: 'rightArrowText'
+  })
+  group.add(text)
+  const rightArrowRect = new zrender.Rect({
+    shape: {
+      width: arrowSize,
+      height: arrowSize,
+      r: 3
+    },
+    style: {
+      fill: 'rgba(221, 221, 221, 1)'
+    },
+    z: baseZ,
+    name: 'rightArrowRect'
+  })
+  group.on('mouseover', function() {
+    const rect = this.childOfName('rightArrowRect')
+    if (boundingRight < task.start) {
+      rect.attr({
+        style: {
+          fill: task.fillColor
+        }
+      })
+    }
+    const text = this.childOfName('rightArrowText')
+    text.attr({
+      style: {
+        fill: 'rgb(32, 35, 40)'
+      }
+    })
+  })
+  group.on('mouseout', function() {
+    const rect = this.childOfName('rightArrowRect')
+    rect.attr({
+      style: {
+        fill: 'rgba(221, 221, 221, 1)'
+      }
+    })
+    const text = this.childOfName('rightArrowText')
+    text.attr({
+      style: {
+        fill: 'rgb(101, 116, 114)',
+      }
+    })
+  })
+  group.on('click', onClickHandler)
+  group.add(rightArrowRect)
+  if (!showArrow) {
+    group.eachChild(function (child) {
+      child.hide();
+    });
+  }
+  return group
 }

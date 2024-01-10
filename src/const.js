@@ -51,3 +51,6 @@ export const filter = getParamsFromSearch('filter', false) ?? null;
 
 // 显示过滤控制器
 export const showFilter = getParamsFromSearch('showFilter') ?? false;
+
+// 2/3 of barHeight is arrowSize
+export const arrowSize = barHeight / 3 * 2
