@@ -54,3 +54,5 @@ export const showFilter = getParamsFromSearch('showFilter') ?? false;
 
 // 2/3 of barHeight is arrowSize
 export const arrowSize = barHeight / 3 * 2
+
+export const showArrow = getParamsFromSearch('showArrow') ?? true;

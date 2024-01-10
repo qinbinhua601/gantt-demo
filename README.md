@@ -29,18 +29,19 @@
 | mockTaskSize | 0 |
 | filter | null |
 | showFilter | false |
+| showArrow | true |
 
 ## 功能点 (roadmap)
 
-- [ ]  taskBar
+- [x]  taskBar
     - [x]  基本UI
     - [x]  可左右扩展duration长度
     - [x]  可水平方向调整位置
     - [x]  可上下调整记录位置
     - [x]  双击可修改task任务信息
     - [x]  支持空行绘制
-    - [ ]  左右超出视口箭头显隐
-    - [ ]  点击超出视口箭头定位到taskBar
+    - [x]  左右超出视口箭头显隐
+    - [x]  点击超出视口箭头定位到taskBar
     - [x]  显示所占天数（不算工作日）
     - [x]  复制当前taskBar到下一行
 - [x]  时间线

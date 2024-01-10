@@ -1,6 +1,6 @@
 import { isHoliday } from './holidays'
 import { syncLocal } from './utils'
-import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize } from './const'
+import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize, showArrow } from './const'
 
 export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
   const { height: barHeight, width } = taskBarRect;
@@ -165,7 +165,8 @@ export function getTaskBarMoveLine (chartStartX, chartStartY, lastScrollX, timeS
 }
 
 
-export function createLeftArrowRect(x, y, task, taskBarRect, showArrow, boundingLeft, onClickHandler) {
+export function createLeftArrowRect(x, y, task, taskBarRect, displayArrow, boundingLeft, onClickHandler) {
+  if (!showArrow) return
   const baseZ = 1000
   const group = new zrender.Group({
     x: 0 + 5,
@@ -228,7 +229,7 @@ export function createLeftArrowRect(x, y, task, taskBarRect, showArrow, bounding
   })
   group.on('click', onClickHandler)
   group.add(leftArrowRect)
-  if (!showArrow) {
+  if (!displayArrow) {
     group.eachChild(function (child) {
       child.hide();
     });
@@ -236,7 +237,8 @@ export function createLeftArrowRect(x, y, task, taskBarRect, showArrow, bounding
   return group
 }
 
-export function createRightArrowRect(x, y, task, unitWidth, lastScrollX, canvasWidth, taskBarRect, showArrow, boundingRight, onClickHandler) {
+export function createRightArrowRect(x, y, task, unitWidth, lastScrollX, canvasWidth, taskBarRect, displayArrow, boundingRight, onClickHandler) {
+  if (!showArrow) return
   const baseZ = 1000
   const group = new zrender.Group({
     x: x + lastScrollX + canvasWidth - arrowSize - 10 - task.start * unitWidth,
@@ -299,7 +301,7 @@ export function createRightArrowRect(x, y, task, unitWidth, lastScrollX, canvasW
   })
   group.on('click', onClickHandler)
   group.add(rightArrowRect)
-  if (!showArrow) {
+  if (!displayArrow) {
     group.eachChild(function (child) {
       child.hide();
     });

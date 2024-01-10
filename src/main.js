@@ -409,6 +409,7 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
       width,
       height: barHeight
     };
+
     const leftArrow = createLeftArrowRect(x, y, task, taskBarRect, showLeftArrow, boundingLeft, function() {
       lastScrollX = (task.start - 3) * unitWidth;
       $lastScrollXSpan.innerText = lastScrollX
@@ -419,8 +420,8 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
       $lastScrollXSpan.innerText = lastScrollX
       redrawChart(true)
     })
-    zr.add(leftArrow)
-    zr.add(rightArrow)
+    leftArrow && zr.add(leftArrow)
+    rightArrow && zr.add(rightArrow)
     if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
     // Create a group to hold task elements
     const group = new zrender.Group({
