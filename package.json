@@ -7,7 +7,7 @@
     "type": "module",
     "scripts": {
         "dev2": "browser-sync start --server --files 'css/*.css,views/*.js,templates/*.html,index.html' --port '3002'",
-        "dev": "vite",
+        "dev": "vite --host '0.0.0.0'",
         "predeploy": "npm run build",
         "build": "vite build",
         "preview": "vite preview",

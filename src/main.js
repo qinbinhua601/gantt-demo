@@ -6,7 +6,7 @@ import { syncLocal, getRandomColor, getLocal, initData, updateData } from './uti
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
-import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup, initLastScrollX, filter } from './const'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile } from './const'
 
 let lastHandleMove = null;
 
@@ -43,14 +43,40 @@ const mileStones = useLocal ? getLocal('mileStones') : [
 ];
 window.mileStones = mileStones;
 
-zr.on('mousewheel', function (e) {
-  e.event.preventDefault();
-  // console.log(e.event, e.event.wheelDeltaX);
-  // set speed for the scroll
-  lastScrollX -= Math.floor(e.event.wheelDeltaX * 0.01 * scrollSpeed);
-  redrawChart(true, lastScrollX, 0);
-  $lastScrollXSpan.innerText = lastScrollX;
-})
+if (isMobile) {
+  let lastTouchX;
+
+  zr.dom.addEventListener('touchstart', function (event) {
+    if (currentGroup?.resizing || currentGroup?.dragging) {
+      return
+    }
+    console.log(event)
+      lastTouchX = event.touches[0].clientX;
+  });
+  
+  zr.dom.addEventListener('touchmove', function (event) {
+    if (currentGroup?.resizing || currentGroup?.dragging) {
+      return
+    }
+    event.preventDefault();
+    let deltaX = event.touches[0].clientX - lastTouchX;
+    lastTouchX = event.touches[0].clientX;
+    lastScrollX -= Math.floor(deltaX);
+    redrawChart(true, lastScrollX, 0);
+    $lastScrollXSpan.innerText = lastScrollX;
+  });
+} else {
+  zr.on('mousewheel', function (e) {
+    e.event.preventDefault();
+    // console.log(e.event, e.event.wheelDeltaX);
+    // set speed for the scroll
+    lastScrollX -= Math.floor(e.event.wheelDeltaX * 0.01 * scrollSpeed);
+    redrawChart(true, lastScrollX, 0);
+    $lastScrollXSpan.innerText = lastScrollX;
+  })
+}
+
+
 // redraw when browser window size change
 window.addEventListener('resize', function() {
   zr.resize();
@@ -427,7 +453,7 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
     const group = new zrender.Group({
       x,
       y,
-      draggable: true  // Enable draggable for the group
+      draggable: !isMobile  // Enable draggable for the group
       // draggable: "horizontal", // Enable draggable for the group
     });
     // Create a rectangle shape for each task

@@ -79,3 +79,4 @@
         - [x]  github-pages
         - [x]  vercel
 - [x]  按颜色过滤 (?showFilter=1)
+- [x]  移动端可以滚动，不可以拖动taskBar
