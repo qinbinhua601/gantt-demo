@@ -12,24 +12,24 @@
 
 ## 支持的query参数
 
-| 参数名 | 默认值 |
-| --- | --- |
-| debug | false |
-| unitWidth | 160 |
-| taskNamePaddingLeft | 15 |
-| timeScaleHeight | 20 |
-| milestoneTopHeight | 20 |
-| barHeight | 30 |
-| barMargin | 1 |
-| scrollSpeed | 30 |
-| includeHoliday | false |
-| useLocal | false |
-| useRemote | false |
-| view | '' |
-| mockTaskSize | 0 |
-| filter | null |
-| showFilter | false |
-| showArrow | true |
+| 参数名 | 默认值 | 说明|
+| --- | --- | --- |
+| debug | false | 调试模式 |
+| unitWidth | 160 | 日期格子宽度 |
+| taskNamePaddingLeft | 15 | 任务名左内边距 |
+| timeScaleHeight | 20 | 时间轴高度 |
+| milestoneTopHeight | 20 | 里程碑高度 |
+| barHeight | 30 | 任务条高度 |
+| barMargin | 1 |任务条下外边距 |
+| scrollSpeed | 30 | 滚动速度 |
+| includeHoliday | false | 计算task耗时是否包含周末 |
+| useLocal | false | 是否用本地数据 |
+| useRemote | false |是否用远端数据 |
+| view | '' |视图名 |
+| mockTaskSize | 0 | mock任务条数量 |
+| filter | null | 过滤色值 |
+| showFilter | false | 开启过滤器 |
+| showArrow | true |是否显示左右📌箭头 |
 
 ## 功能点 (roadmap)
 
