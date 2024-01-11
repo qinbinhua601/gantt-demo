@@ -20,11 +20,11 @@ const zr = zrender.init(document.getElementById("zrender-container"), {
 
 // Define tasks for the Gantt chart
 const tasks = useLocal ? getLocal() : [
-  { name: "Task 1", start: 0, duration: 3, resource: "John", fillColor: getRandomColor() },
-  { name: "Task 2", start: 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
-  { name: "Task 3 long long long", start: 7, duration: 1, resource: "Bob", fillColor: getRandomColor() },
-  { name: "Task 4", start: 8, duration: 2, resource: "Bose", fillColor: getRandomColor() },
-  { name: "Task 5", start: 10, duration: 3, resource: "Uno", fillColor: getRandomColor() },
+  { name: "Task 1", start: todayOffset + 0, duration: 3, resource: "John", fillColor: getRandomColor() },
+  { name: "Task 2", start: todayOffset + 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
+  { name: "Task 3 long long long", start: todayOffset + 7, duration: 1, resource: "Bob", fillColor: getRandomColor() },
+  { name: "Task 4", start: todayOffset + 8, duration: 2, resource: "Bose", fillColor: getRandomColor() },
+  { name: "Task 5", start: todayOffset + 10, duration: 3, resource: "Uno", fillColor: getRandomColor() },
   {}
   // Add more tasks as needed
 ];
