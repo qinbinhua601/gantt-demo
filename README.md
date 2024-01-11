@@ -12,6 +12,9 @@
 
 ## 支持的query参数
 
+> 使用方式 url?参数名=参数值  
+> 例如：[/?barHeight=40](https://qinbinhua601.github.io/gantt-demo/index.html?barHeight=40)
+
 | 参数名 | 默认值 | 说明|
 | --- | --- | --- |
 | debug | false | 调试模式 |
