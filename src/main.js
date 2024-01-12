@@ -426,7 +426,6 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
     // if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
     const showLeftArrow = task.start <= boundingLeft, showRightArrow = (task.start + task.duration) > boundingRight
 
-    drawTaskBar++;
     // Calculate position and dimensions
     const x = chartStartX + task.start * unitWidth;
     const y = chartStartY + (barHeight + barMargin) * index;
@@ -449,6 +448,7 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
     leftArrow && zr.add(leftArrow)
     rightArrow && zr.add(rightArrow)
     if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
+    drawTaskBar++;
     // Create a group to hold task elements
     const group = new zrender.Group({
       x,
@@ -630,7 +630,6 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
 
     zr.add(group);
   });
-
   // 如果屏幕里没有任务条，调整到第一个
   if (isFirst && drawTaskBar === 0) {
     if (tasks.length > 0) {
