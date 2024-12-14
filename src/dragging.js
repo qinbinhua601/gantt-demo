@@ -7,7 +7,7 @@ export default function makeElementDraggable(draggableElement) {
   // 鼠标按下时，记录鼠标与元素的位置差
   draggableElement.addEventListener('mousedown', function(event) {
     draggableElement.style.position = 'absolute'
-    console.log(event.target, event.target.closest('#taskForm'))
+    // console.log(event.target, event.target.closest('#taskForm'))
     if (event.target.closest('#taskForm')) return
     isDragging = true;
     offsetX = event.clientX - draggableElement.getBoundingClientRect().left;
