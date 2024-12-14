@@ -7,6 +7,7 @@ import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
 import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, $lastScrollXSpan, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile } from './const'
+import ContextMenu from './contextMenu'
 
 let lastHandleMove = null;
 
@@ -66,6 +67,10 @@ if (isMobile) {
     $lastScrollXSpan.innerText = lastScrollX;
   });
 } else {
+  // 点击其他区域隐藏ContextMenu
+  zr.dom.addEventListener('click', function () {
+    ContextMenu.hide()
+  })
   zr.on('mousewheel', function (e) {
     e.event.preventDefault();
     // console.log(e.event, e.event.wheelDeltaX);
@@ -583,6 +588,11 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
       }
     });
     group.on("dragend", function (e) {
+      if (this.isContextMenu) {
+        this.isContextMenu = false
+        return
+      }
+      this.isDragging = false
       console.log('dragend')
       if (this.resizing) {
         this.resizing = false;
@@ -626,6 +636,20 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
 
       $taskInput.value = JSON.stringify(tasks[this.index], null, 2);
       $taskInput.dataset.index = this.index
+    });
+
+    group.on("contextmenu", function (e) {
+      this.isContextMenu = true
+      e.event.preventDefault()
+      const { zrX: x, zrY: y } = e.event
+      // console.log(tasks[this.index])
+      ContextMenu.show({
+        currentIndex: this.index,
+        position: {
+          x,
+          y
+        }
+      })
     });
 
     zr.add(group);
