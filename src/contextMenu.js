@@ -55,7 +55,9 @@ ContextMenu.show = function ({
   ContextMenu.el.style.top = `${y + ContextMenu.offsetY}px`
 }
 ContextMenu.hide = function () {
-  ContextMenu.el.style.display = 'none';
+  if (ContextMenu.el) {
+    ContextMenu.el.style.display = 'none';
+  }
 }
 
 export default ContextMenu;
