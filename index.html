@@ -19,16 +19,23 @@
         left: 0;
         right: 0;
         z-index: 1000;
-        background-color: rgba(255, 0, 0, 0.3);
+        /* background-color: rgba(255, 0, 0, 0.3); */
         /* display: flex; */
         align-items: center;
         justify-content: center;
         flex-direction: column;
         display: none;
       }
+
+      .popup-wrapper:hover {
+        cursor: move;
+      }
   
       .popup-wrapper .popup-wrapper__body {
         width: 337px;
+        padding: 20px 30px;
+        background-color: #9AA6B2;
+        border-radius: 10px;
       }
       .popup-wrapper .popup-wrapper__body .button-wrapper button {
         display: block;
@@ -123,7 +130,43 @@
       font-size: 12px;
     }
     </style>
-    <script type="module" crossorigin src="/gantt-demo/assets/index-XW28k0Hp.js"></script>
+    <style>
+      .form-container {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        width: 300px;
+        text-align: center;
+      }
+
+      h2 {
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+      }
+
+      label {
+        margin-bottom: 8px;
+        font-weight: bold;
+        text-align: left;
+      }
+
+      input {
+        margin-bottom: 12px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      input[type="color"] {
+        padding: 0;
+      }
+    </style>
+    <script type="module" crossorigin src="/gantt-demo/assets/index-1WS36QLw.js"></script>
   </head>
   <body>
     <div class="control-item">
@@ -147,8 +190,16 @@
     <!-- popup 提示框 -->
     <div class="popup-wrapper">
       <div class="popup-wrapper__body">
-        <form>
-          <textarea name="taskvalue" cols="30" rows="10" id="current-task" data-index="0"></textarea>
+        <form id="taskForm">
+          <label for="name">项目名称:</label>
+          <input type="text" id="name" name="name" required>
+    
+          <label for="resource">负责人:</label>
+          <input type="text" id="resource" name="resource" required>
+    
+          <label for="fillColor">填充色:</label>
+          <input type="color" id="fillColor" name="fillColor" value="#e66465">
+      
           <div class="button-wrapper">
             <button class="modify">修改</button>
           </div>
