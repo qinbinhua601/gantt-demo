@@ -631,11 +631,9 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
     });
 
     group.on("dblclick", function () {
-      Popup.show()
-      const $taskInput = document.querySelector('#current-task')
-
-      $taskInput.value = JSON.stringify(tasks[this.index], null, 2);
-      $taskInput.dataset.index = this.index
+      Popup.show({
+        currentIndex: this.index
+      })
     });
 
     group.on("contextmenu", function (e) {
