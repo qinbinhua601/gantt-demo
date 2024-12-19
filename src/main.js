@@ -123,7 +123,8 @@ function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
       // if (true || (posX >= 0 && posX < timeScaleWidth && posY >= 0 && posY < tasks.length)) {
       if (posY >= 0 && posY < tasks.length) {
         // console.log('zr', 'clicked', posX, posY)
-        const hasTask = posX >= tasks[posY].start && posX < tasks[posY].start + tasks[posY].duration
+        // const hasTask = posX >= tasks[posY].start && posX < tasks[posY].start + tasks[posY].duration
+       const hasTask = posY !== tasks.length - 1 // 只能在最后一行插入新任务
         if (hasTask) {
           lastDayRect && zr.remove(lastDayRect)
           return
