@@ -1,4 +1,5 @@
 import * as zrender from 'zrender'
+import 'zrender/lib/canvas/canvas'
 import { hachureLines } from './hachure'
 import { isHoliday } from './holidays'
 import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilterItems } from './utils'
