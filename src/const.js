@@ -33,18 +33,18 @@ export const useLocal = getParamsFromSearch('useLocal');
 // if use remote data
 export const useRemote = getParamsFromSearch('useRemote');
 // query view
-export const view = getParamsFromSearch('view', false) ?? ''
+export const view = getParamsFromSearch('view', false) ?? 'week'
+export const viewDate = getParamsFromSearch('viewDate', false) ?? ''
 
 // mockTaskSize for test only enabled when useLocal is false
 export const mockTaskSize = !useRemote && !useLocal && getParamsFromSearch('mockTaskSize') ? Number(getParamsFromSearch('mockTaskSize')) : 0;
 
-export const todayOffset = Math.floor((+new Date() - +new Date('2024-01-01')) / (60 * 60 * 24 * 1000))
+export const dayMs = 24 * 60 * 60 * 1000
+export const baseDate = new Date(2024, 0, 1)
+
+export const todayOffset = Math.floor((+new Date() - +baseDate) / dayMs)
 
 export const initLastScrollX = (todayOffset - 1) * unitWidth
-
-// 显示scrollX的值
-export const $lastScrollXSpan = document.querySelector('#last-scroll-x');
-$lastScrollXSpan.innerText = initLastScrollX;
 
 // 过滤色
 export const filter = getParamsFromSearch('filter', false) ?? null;

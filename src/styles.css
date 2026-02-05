@@ -1,0 +1,74 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app-layout {
+  min-height: 100%;
+  background: #f5f7fb;
+}
+
+.app-header {
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 16px;
+  height: auto;
+  line-height: normal;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.scroll-tag {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 140px;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.data-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+}
+
+.canvas-wrapper {
+  padding: 16px;
+}
+
+.gantt-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 6px 16px rgba(35, 56, 102, 0.08);
+}
+
+#gantt-container {
+  height: 700px;
+  width: 100%;
+}
+
+.context-menu-overlay {
+  position: fixed;
+  z-index: 1000;
+}
+
+.context-menu-card {
+  width: 220px;
+}

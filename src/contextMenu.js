@@ -1,3 +1,5 @@
+import { t } from './i18n'
+
 // Context Menu
 export const ContextMenu = {};
 
@@ -16,7 +18,7 @@ ContextMenu.show = function ({
     $deleteElement.onclick = function (e) {
       e.preventDefault();
       const index = Number($contextMenu.dataset.index);
-      if (confirm('Are you sure to DELETE the task?')) {
+      if (confirm(t('contextMenu.deleteConfirm'))) {
         tasks.splice(index, 1)
         syncLocal();
       }

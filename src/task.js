@@ -1,8 +1,9 @@
+import * as zrender from 'zrender'
 import { isHoliday } from './holidays'
 import { syncLocal } from './utils'
-import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize, showArrow } from './const'
+import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize, showArrow, baseDate, dayMs } from './const'
 
-export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
+export function getLeftHandleBar(w, box, taskBarRect, redrawChart, unitWidthOverride, halfUnitWidthOverride) {
   const { height: barHeight, width } = taskBarRect;
   const leftBar = new zrender.Rect({
     name: "leftBar",
@@ -51,8 +52,10 @@ export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
     const deltaX = e.event.zrX - dragStartX;
     const dir = deltaX < 0 ? -1 : 1;
     const delta = Math.abs(deltaX);
-    const mod = delta % unitWidth;
-    const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
+    const widthUnit = unitWidthOverride || unitWidth;
+    const halfWidthUnit = halfUnitWidthOverride || halfUnitWidth;
+    const mod = delta % widthUnit;
+    const offsetX = dir * (Math.floor(delta / widthUnit) + Math.floor(mod / halfWidthUnit));
     console.log(offsetX)
     const task = tasks[this.parent.index];
     task.start += offsetX;
@@ -67,7 +70,7 @@ export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
   return leftBar;
 }
 
-export function getRightHandleBar(w, box, taskBarRect, redrawChart) {
+export function getRightHandleBar(w, box, taskBarRect, redrawChart, unitWidthOverride, halfUnitWidthOverride) {
   const { height: barHeight, width } = taskBarRect;
   const rightBar = new zrender.Rect({
     style: {
@@ -115,8 +118,10 @@ export function getRightHandleBar(w, box, taskBarRect, redrawChart) {
     const deltaX = e.event.zrX - dragStartX;
     const dir = deltaX < 0 ? -1 : 1;
     const delta = Math.abs(deltaX);
-    const mod = delta % unitWidth;
-    const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth));
+    const widthUnit = unitWidthOverride || unitWidth;
+    const halfWidthUnit = halfUnitWidthOverride || halfUnitWidth;
+    const mod = delta % widthUnit;
+    const offsetX = dir * (Math.floor(delta / widthUnit) + Math.floor(mod / halfWidthUnit));
     const task = tasks[this.parent.index];
     task.duration += offsetX;
     if (offsetX) {
@@ -129,8 +134,8 @@ export function getRightHandleBar(w, box, taskBarRect, redrawChart) {
   return rightBar;
 }
 
-const taskStartDate = +new Date('2024-01-01')
-const taskDayCount = 60 * 60 * 24 * 1000
+const taskStartDate = +baseDate
+const taskDayCount = dayMs
 
 // 获取天数
 export function getRealDuration(task, includeHoliday) {
@@ -145,14 +150,15 @@ export function getRealDuration(task, includeHoliday) {
   return res
 }
 
-export function getTaskBarMoveLine (chartStartX, chartStartY, lastScrollX, timeScaleWidth, posY) {
+export function getTaskBarMoveLine (chartStartX, chartStartY, lastScrollX, timeScaleWidth, posY, unitWidthOverride) {
   // 如果越界，不要画蓝色底线
   if (posY < 0 || posY > tasks.length - 1) return null
+  const widthUnit = unitWidthOverride || unitWidth
   const bottomLine = new zrender.Rect({
     shape: {
       x: chartStartX + lastScrollX,
       y: chartStartY + (barHeight + barMargin) * posY,
-      width: timeScaleWidth * unitWidth,
+      width: timeScaleWidth * widthUnit,
       height: 1
     },
     style: {
