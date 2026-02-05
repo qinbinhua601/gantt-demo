@@ -543,9 +543,7 @@ export default function App() {
 
   const handleApplySettings = async () => {
     const values = await settingsForm.validateFields();
-    const normalizedView = values.view === 'all' ? '' : values.view;
-    const normalizedValues = { ...values, view: normalizedView };
-    saveStoredSettings(normalizedValues);
+    saveStoredSettings(values);
     const params = new URLSearchParams(location.search);
     const setOrDelete = (key, value, fallback) => {
       if (value === undefined || value === null || value === '') {
@@ -566,7 +564,7 @@ export default function App() {
     setOrDelete('barMargin', values.barMargin, barMargin);
     setOrDelete('scrollSpeed', values.scrollSpeed, scrollSpeed);
     setOrDelete('mockTaskSize', values.mockTaskSize, mockTaskSize || 0);
-    setOrDelete('view', normalizedView, view || '');
+    setOrDelete('view', values.view, view || '');
     setOrDelete('filter', values.filter, filterParam || '');
     setOrDelete('includeHoliday', values.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
     setOrDelete('useLocal', values.useLocal ? 1 : 0, useLocal ? 1 : 0);
@@ -579,13 +577,9 @@ export default function App() {
   };
 
   const handleViewSwitch = (value) => {
-    const nextView = value === 'all' ? '' : value;
+    const nextView = value;
     const params = new URLSearchParams(location.search);
-    if (nextView) {
-      params.set('view', nextView);
-    } else {
-      params.delete('view');
-    }
+    params.set('view', nextView);
     if (nextView !== 'week' && nextView !== 'month') {
       params.delete('viewDate');
     }

@@ -195,6 +195,182 @@ export function initGantt({
       taskIndex: task?.name ? Math.max(0, tasks.indexOf(task)) : tasks.length - 1
     }))
 
+    if (view === 'month' && viewRange) {
+      const monthStartDate = new Date(baseDate.getTime() + viewRange.start * dayMs)
+      const monthYear = monthStartDate.getFullYear()
+      const monthIndex = monthStartDate.getMonth()
+      const daysInMonth = new Date(monthYear, monthIndex + 1, 0).getDate()
+      const firstDayOfWeek = (new Date(monthYear, monthIndex, 1).getDay() + 6) % 7
+      const totalCells = firstDayOfWeek + daysInMonth
+      const weekRows = Math.ceil(totalCells / 7)
+      const cellWidth = canvasWidth / 7
+      const barHeightMini = 20
+      const barGap = 4
+      const tasksByDay = new Map()
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayOffset = viewRange.start + (day - 1)
+        const tasksForDay = visibleTasks.filter(task => {
+          const start = task.start ?? 0
+          const duration = task.duration ?? 1
+          const end = start + duration - 1
+          return dayOffset >= start && dayOffset <= end
+        })
+        tasksByDay.set(dayOffset, tasksForDay)
+      }
+      const maxTasksInDay = Math.max(1, ...Array.from(tasksByDay.values()).map(items => items.length))
+      const cellHeight = Math.max(110, 28 + maxTasksInDay * (barHeightMini + barGap))
+      const calendarStartY = chartStartY - timeScaleHeight
+
+      for (let row = 0; row < weekRows; row++) {
+        for (let col = 0; col < 7; col++) {
+          const cellIndex = row * 7 + col
+          const dayNumber = cellIndex - firstDayOfWeek + 1
+          const cellX = chartStartX + col * cellWidth
+          const cellY = calendarStartY + row * cellHeight
+          const inMonth = dayNumber >= 1 && dayNumber <= daysInMonth
+          const dayOffset = viewRange.start + (dayNumber - 1)
+
+          const dateInfo = inMonth ? isHoliday(baseDate.getTime() + dayOffset * dayMs) : null
+          const cellRect = new zrender.Rect({
+            shape: {
+              x: cellX,
+              y: cellY,
+              width: cellWidth,
+              height: cellHeight
+            },
+            style: {
+              fill: inMonth && dateInfo?.isHoliday ? 'rgba(245, 245, 245, 0.6)' : '#ffffff',
+              stroke: 'lightgray'
+            }
+          })
+          cellRect.on('mouseover', function () {
+            this.attr({
+              style: {
+                stroke: '#9ca3af',
+                lineWidth: 1
+              }
+            })
+          })
+          cellRect.on('mouseout', function () {
+            this.attr({
+              style: {
+                stroke: 'lightgray',
+                lineWidth: 1
+              }
+            })
+          })
+          cellRect.on('click', function () {
+            const insertIndex = tasks.length - 1
+            if (onCreateTask) {
+              onCreateTask({ posX: dayOffset, posY: insertIndex })
+              return
+            }
+            const taskName = prompt('task name?')
+            if (!taskName) return
+            const resourceName = prompt('assign to who?') || defaultTaskOwner
+            tasks.splice(insertIndex, 0, {
+              name: taskName,
+              start: dayOffset,
+              duration: 1,
+              resource: resourceName,
+              fillColor: getRandomColor()
+            })
+            syncLocal()
+            notifyDataChange('create')
+            redrawChart(true)
+          })
+          zr.add(cellRect)
+
+          if (!inMonth) continue
+
+          const dateText = new zrender.Text({
+            style: {
+              text: dateInfo?.dateString || String(dayNumber),
+              x: cellX + 6,
+              y: cellY + 4,
+              textAlign: 'left',
+              textVerticalAlign: 'top',
+              fontSize: 12,
+              fill: '#111827'
+            },
+            z: 2
+          })
+          zr.add(dateText)
+
+          if (dayOffset === todayOffset) {
+            const todayDot = new zrender.Circle({
+              shape: {
+                cx: cellX + cellWidth - 10,
+                cy: cellY + 10,
+                r: 4
+              },
+              style: {
+                fill: '#2955c9'
+              },
+              z: 3
+            })
+            zr.add(todayDot)
+          }
+
+          const tasksForDay = tasksByDay.get(dayOffset) || []
+          tasksForDay.forEach((task, index) => {
+            const taskIndex = tasks.indexOf(task)
+            const barY = cellY + 22 + index * (barHeightMini + barGap)
+            const barRect = new zrender.Rect({
+              shape: {
+                x: cellX + 6,
+                y: barY,
+                width: cellWidth - 12,
+                height: barHeightMini,
+                r: 3
+              },
+              style: {
+                fill: task.fillColor || '#2955c9'
+              },
+              z: 2
+            })
+            barRect.on('contextmenu', function (e) {
+              e.event.preventDefault()
+              const { zrX: x, zrY: y } = e.event
+              const { left, top } = container.getBoundingClientRect()
+              onContextMenu?.({
+                index: taskIndex,
+                x: x + left,
+                y: y + top
+              })
+            })
+            const barText = new zrender.Text({
+              style: {
+                text: task.name,
+                x: cellX + 10,
+                y: barY,
+                textAlign: 'left',
+                textVerticalAlign: 'top',
+                lineHeight: barHeightMini,
+                fontSize: 10,
+                fill: '#ffffff'
+              },
+              z: 3
+            })
+            barText.on('contextmenu', function (e) {
+              e.event.preventDefault()
+              const { zrX: x, zrY: y } = e.event
+              const { left, top } = container.getBoundingClientRect()
+              onContextMenu?.({
+                index: taskIndex,
+                x: x + left,
+                y: y + top
+              })
+            })
+            zr.add(barRect)
+            zr.add(barText)
+          })
+        }
+      }
+
+      return
+    }
+
     const boundingLeft = isFixedView ? viewRange.start : Math.floor(viewScrollX / unitWidth)
     const boundingRight = isFixedView ? viewRange.end : Math.floor((viewScrollX + canvasWidth) / unitWidth)
     // hover day grid to add task
