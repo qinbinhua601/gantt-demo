@@ -6,6 +6,7 @@ import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilter
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
+import { t } from './i18n'
 import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs, view, viewDate } from './const'
 
 export function initGantt({
@@ -103,7 +104,7 @@ export function initGantt({
 
   // Define the milestones
   const mileStones = useLocal ? getLocal('mileStones') : [
-    { start: 10, name: '提测' }
+    { start: 10, name: t('gantt.demoMilestoneName') }
   ]
   window.mileStones = mileStones
 
@@ -265,9 +266,9 @@ export function initGantt({
               onCreateTask({ posX: dayOffset, posY: insertIndex })
               return
             }
-            const taskName = prompt('task name?')
+            const taskName = prompt(t('gantt.taskNamePrompt'))
             if (!taskName) return
-            const resourceName = prompt('assign to who?') || defaultTaskOwner
+            const resourceName = prompt(t('gantt.assignPrompt')) || defaultTaskOwner
             tasks.splice(insertIndex, 0, {
               name: taskName,
               start: dayOffset,
@@ -400,9 +401,9 @@ export function initGantt({
               onCreateTask({ posX, posY: insertIndex })
               return
             }
-            const taskName = prompt('task name?')
+            const taskName = prompt(t('gantt.taskNamePrompt'))
             if (!taskName) return
-            const resourceName = prompt('assign to who?') || defaultTaskOwner
+            const resourceName = prompt(t('gantt.assignPrompt')) || defaultTaskOwner
             tasks.splice(insertIndex, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
             syncLocal()
             notifyDataChange('create')
@@ -556,8 +557,8 @@ export function initGantt({
         dateText.on('click', function () {
           const index = mileStones.findIndex(item => item.start === i)
           if (index === -1) {
-            if (confirm('Do you want to CREATE a milestone here?')) {
-              const mileStoneName = prompt('mileStone name?')
+            if (confirm(t('gantt.createMilestoneConfirm'))) {
+              const mileStoneName = prompt(t('gantt.milestoneNamePrompt'))
               mileStones.push({
                 start: i,
                 name: mileStoneName
@@ -566,7 +567,7 @@ export function initGantt({
               notifyDataChange('milestone')
             }
           } else {
-            if (confirm('Do you want to DELETE the milestone here?')) {
+            if (confirm(t('gantt.deleteMilestoneConfirm'))) {
               mileStones.splice(index, 1)
               syncLocal()
               notifyDataChange('milestone')
@@ -659,7 +660,7 @@ export function initGantt({
         style: {
           x: milestoneX + 10,
           y: chartStartY - timeScaleHeight - milestoneTopHeight,
-          text: item.name || '里程碑',
+          text: item.name || t('gantt.milestoneDefaultName'),
           fill: "white",
           lineHeight: milestoneTopHeight,
           fontSize: 12
@@ -896,7 +897,7 @@ export function initGantt({
   window.redrawChart = redrawChart
 
   if (useRemote) {
-    document.title += ' (Remote)'
+    document.title += t('app.remoteSuffix')
     initData(zr, () => {
       redrawChart(true)
       notifyDataChange('init')

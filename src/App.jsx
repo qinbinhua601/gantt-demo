@@ -37,6 +37,7 @@ import {
 import { Row, Col } from 'antd';
 import dayjs from 'dayjs';
 import { initGantt } from './gantt.js';
+import { getLocale, setLocale, t } from './i18n';
 import {
   initLastScrollX,
   showFilter,
@@ -161,7 +162,7 @@ function parseIcs(text) {
 
 function mapEventsToTasks(events) {
   return events.map(event => {
-    const summary = event.SUMMARY || 'Untitled event';
+    const summary = event.SUMMARY || t('ics.untitledEvent');
     const startParams = event.DTSTART__params || '';
     const endParams = event.DTEND__params || '';
     const startDate = parseIcsDate(event.DTSTART, startParams.includes('VALUE=DATE'));
@@ -170,7 +171,7 @@ function mapEventsToTasks(events) {
     const organizer = event.ORGANIZER || '';
     const offset = Math.floor((startDate.getTime() - baseDate.getTime()) / dayMs);
     const duration = endDate ? Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / dayMs)) : 1;
-    const resource = organizer.replace(/^mailto:/i, '').trim() || 'Imported';
+    const resource = organizer.replace(/^mailto:/i, '').trim() || t('ics.importedOwner');
     return {
       name: summary,
       start: offset,
@@ -214,6 +215,7 @@ export default function App() {
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
   const jsonInputRef = useRef(null);
+  const [locale, setLocaleState] = useState(getLocale());
   const [scrollX, setScrollX] = useState(initLastScrollX);
   const [filterColors, setFilterColors] = useState([]);
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
@@ -228,6 +230,10 @@ export default function App() {
   const [createForm] = Form.useForm();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsForm] = Form.useForm();
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -308,15 +314,21 @@ export default function App() {
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
+  const handleLocaleChange = (value) => {
+    setLocale(value);
+    setLocaleState(value);
+    ganttRef.current?.redraw?.();
+  };
+
   const handleReset = () => {
     ganttRef.current?.resetScroll();
   };
 
   const handleClearTasks = () => {
     Modal.confirm({
-      title: 'Clear all tasks?',
-      content: 'This will reset the task list to empty rows.',
-      okText: 'Clear',
+      title: t('modal.clearTasksTitle'),
+      content: t('modal.clearTasksContent'),
+      okText: t('modal.okClear'),
       okButtonProps: { danger: true },
       onOk: () => ganttRef.current?.clearTasks()
     });
@@ -324,9 +336,9 @@ export default function App() {
 
   const handleClearMilestones = () => {
     Modal.confirm({
-      title: 'Clear all milestones?',
-      content: 'This action cannot be undone.',
-      okText: 'Clear',
+      title: t('modal.clearMilestonesTitle'),
+      content: t('modal.clearMilestonesContent'),
+      okText: t('modal.okClear'),
       okButtonProps: { danger: true },
       onOk: () => ganttRef.current?.clearMilestones()
     });
@@ -403,14 +415,14 @@ export default function App() {
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(data.gantt_setting));
       }
       Modal.success({
-        title: 'Import complete',
-        content: 'Local data has been imported. The page will reload to apply changes.'
+        title: t('toast.importComplete'),
+        content: t('toast.importDataSuccess')
       });
       setTimeout(() => location.reload(), 300);
     } catch (error) {
       Modal.error({
-        title: 'Import failed',
-        content: 'Invalid JSON file.'
+        title: t('toast.importFailed'),
+        content: t('toast.importInvalidJson')
       });
     } finally {
       event.target.value = '';
@@ -421,8 +433,8 @@ export default function App() {
     {
       key: 'import-ics',
       label: (
-        <Tooltip title="Import Apple Calendar .ics" placement="right">
-          Import .ics
+        <Tooltip title={t('data.importIcsTooltip')} placement="right">
+          {t('data.importIcs')}
         </Tooltip>
       ),
       icon: <UploadOutlined />,
@@ -431,8 +443,8 @@ export default function App() {
     {
       key: 'export-json',
       label: (
-        <Tooltip title="Export tasks, milestones, and settings as JSON" placement="right">
-          Export data (JSON)
+        <Tooltip title={t('data.exportJsonTooltip')} placement="right">
+          {t('data.exportJson')}
         </Tooltip>
       ),
       icon: <DownloadOutlined />,
@@ -441,8 +453,8 @@ export default function App() {
     {
       key: 'import-json',
       label: (
-        <Tooltip title="Import tasks, milestones, and settings from JSON" placement="right">
-          Import data (JSON)
+        <Tooltip title={t('data.importJsonTooltip')} placement="right">
+          {t('data.importJson')}
         </Tooltip>
       ),
       icon: <UploadOutlined />,
@@ -459,20 +471,20 @@ export default function App() {
       const tasks = mapEventsToTasks(events);
       if (!tasks.length) {
         Modal.info({
-          title: 'No events found',
-          content: 'The .ics file did not contain any importable events.'
+          title: t('toast.noEventsTitle'),
+          content: t('toast.noEventsContent')
         });
       } else {
         ganttRef.current?.addTasks(tasks);
         Modal.success({
-          title: 'Import complete',
-          content: `Imported ${tasks.length} event${tasks.length === 1 ? '' : 's'} from ${file.name}.`
+          title: t('toast.importComplete'),
+          content: t('toast.importIcsSuccess', { count: tasks.length, file: file.name })
         });
       }
     } catch (error) {
       Modal.error({
-        title: 'Import failed',
-        content: 'Unable to read this .ics file.'
+        title: t('toast.importFailed'),
+        content: t('toast.importIcsFailed')
       });
     } finally {
       event.target.value = '';
@@ -483,12 +495,12 @@ export default function App() {
     {
       key: 'copy',
       icon: <CopyOutlined />,
-      label: 'Copy task'
+      label: t('menu.copyTask')
     },
     {
       key: 'delete',
       icon: <DeleteOutlined />,
-      label: 'Delete task',
+      label: t('menu.deleteTask'),
       danger: true
     }
   ];
@@ -625,69 +637,80 @@ export default function App() {
         <div className="toolbar">
           <Space className="toolbar-group" size="middle">
             <Typography.Title level={4} style={{ margin: 0 }}>
-              Gantt Planner
+              {t('app.title')}
             </Typography.Title>
-            <Tag color="blue" className="scroll-tag">Scroll X: {scrollX}</Tag>
+            <Tag color="blue" className="scroll-tag">{t('toolbar.scrollX', { value: scrollX })}</Tag>
             <Segmented
               value={viewValue}
               onChange={handleViewSwitch}
               options={[
-                { label: 'All', value: 'all' },
-                { label: 'This week', value: 'week' },
-                { label: 'This month', value: 'month' }
+                { label: t('toolbar.all'), value: 'all' },
+                { label: t('toolbar.thisWeek'), value: 'week' },
+                { label: t('toolbar.thisMonth'), value: 'month' }
               ]}
             />
             {viewValue === 'week' && (
               <Button.Group size="small">
                 <Button icon={<LeftOutlined />} onClick={() => handleWeekNavigate(-1)}>
-                  Last week
+                  {t('toolbar.lastWeek')}
                 </Button>
                 <Button type="primary" onClick={() => handleWeekNavigate('current')}>
-                  Current week
+                  {t('toolbar.currentWeek')}
                 </Button>
                 <Button icon={<RightOutlined />} onClick={() => handleWeekNavigate(1)}>
-                  Next week
+                  {t('toolbar.nextWeek')}
                 </Button>
               </Button.Group>
             )}
             {viewValue === 'month' && (
               <Button.Group size="small">
                 <Button icon={<LeftOutlined />} onClick={() => handleMonthNavigate(-1)}>
-                  Last month
+                  {t('toolbar.lastMonth')}
                 </Button>
                 <Button type="primary" onClick={() => handleMonthNavigate('current')}>
-                  Current month
+                  {t('toolbar.currentMonth')}
                 </Button>
                 <Button icon={<RightOutlined />} onClick={() => handleMonthNavigate(1)}>
-                  Next month
+                  {t('toolbar.nextMonth')}
                 </Button>
               </Button.Group>
             )}
           </Space>
           <Space className="toolbar-group" size="middle">
-            <Tooltip title="Scroll to today">
+            <Tooltip title={t('toolbar.scrollToToday')}>
               <Button icon={<AimOutlined />} onClick={handleReset}>
               </Button>
             </Tooltip>
-            <Tooltip title="Create a new task">
+            <Tooltip title={t('toolbar.createTaskTooltip')}>
               <Button icon={<PlusOutlined />} onClick={handleCreateClick}>
-                Create task
+                {t('toolbar.createTask')}
               </Button>
             </Tooltip>
-            <Tooltip title="Open settings">
+            <Tooltip title={t('toolbar.openSettings')}>
               <Button icon={<SettingOutlined />} onClick={handleOpenSettings}>
-                Settings
+                {t('toolbar.settings')}
               </Button>
             </Tooltip>
-            <Tooltip title="Clear all tasks">
+            <Tooltip title={t('toolbar.clearTasksTooltip')}>
               <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
-                Clear tasks
+                {t('toolbar.clearTasks')}
               </Button>
             </Tooltip>
-            <Tooltip title="Clear all milestones">
+            <Tooltip title={t('toolbar.clearMilestonesTooltip')}>
               <Button danger icon={<DeleteOutlined />} onClick={handleClearMilestones}>
-                Clear milestones
+                {t('toolbar.clearMilestones')}
               </Button>
+            </Tooltip>
+            <Tooltip title={t('lang.switch')}>
+              <Select
+                value={locale}
+                onChange={handleLocaleChange}
+                style={{ width: 120 }}
+                options={[
+                  { label: t('lang.english'), value: 'en' },
+                  { label: t('lang.chinese'), value: 'zh' }
+                ]}
+              />
             </Tooltip>
             <Dropdown
               menu={{ items: dataMenuItems }}
@@ -695,9 +718,9 @@ export default function App() {
               trigger={['click']}
               onOpenChange={setDataMenuOpen}
             >
-              <Tooltip title={dataMenuOpen ? '' : 'Import / Export'}>
+              <Tooltip title={dataMenuOpen ? '' : t('toolbar.importExport')}>
                 <Button icon={<UploadOutlined />}>
-                  Data <span className="data-arrow">{dataMenuOpen ? <UpOutlined /> : <DownOutlined />}</span>
+                  {t('toolbar.data')} <span className="data-arrow">{dataMenuOpen ? <UpOutlined /> : <DownOutlined />}</span>
                 </Button>
               </Tooltip>
             </Dropdown>
@@ -723,7 +746,7 @@ export default function App() {
               <FilterOutlined />
               <Select
                 value={filterParam || ''}
-                placeholder="Filter by color"
+                placeholder={t('filter.placeholder')}
                 style={{ width: 220 }}
                 options={filterColors.map(color => ({
                   label: color ? (
@@ -741,7 +764,7 @@ export default function App() {
                       {color}
                     </Space>
                   ) : (
-                    'All colors'
+                    t('filter.allColors')
                   ),
                   value: color
                 }))}
@@ -771,20 +794,20 @@ export default function App() {
 
       <Modal
         open={editOpen}
-        title="Edit task"
-        okText="Save"
+        title={t('modal.editTitle')}
+        okText={t('modal.save')}
         onCancel={() => setEditOpen(false)}
         onOk={handleEditSubmit}
       >
         <Form layout="vertical" form={editForm}>
-          <Form.Item name="name" label="Task name" rules={[{ required: true, message: 'Enter a task name' }]}
+          <Form.Item name="name" label={t('form.taskName')} rules={[{ required: true, message: t('form.taskNameRequired') }]}
           >
-            <Input prefix={<EditOutlined />} placeholder="Task name" />
+            <Input prefix={<EditOutlined />} placeholder={t('form.taskNamePlaceholder')} />
           </Form.Item>
-          <Form.Item name="resource" label="Owner">
-            <Input placeholder="Owner" />
+          <Form.Item name="resource" label={t('form.owner')}>
+            <Input placeholder={t('form.ownerPlaceholder')} />
           </Form.Item>
-          <Form.Item name="fillColor" label="Fill color" rules={[{ required: true, message: 'Choose a color' }]}
+          <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
           >
             <Space.Compact style={{ width: '100%' }}>
               <Input
@@ -810,13 +833,13 @@ export default function App() {
 
       <Modal
         open={createOpen}
-        title={`Add task on ${formatDateFromOffset(createPos.posX)}`}
-        okText="Create"
+        title={t('modal.addTitle', { date: formatDateFromOffset(createPos.posX) })}
+        okText={t('modal.create')}
         onCancel={() => setCreateOpen(false)}
         onOk={handleCreateSubmit}
       >
         <Form layout="vertical" form={createForm}>
-          <Form.Item name="date" label="Date" rules={[{ required: true, message: 'Select a date' }]}
+          <Form.Item name="date" label={t('form.date')} rules={[{ required: true, message: t('form.dateRequired') }]}
           >
             <DatePicker
               style={{ width: '100%' }}
@@ -829,14 +852,14 @@ export default function App() {
               }}
             />
           </Form.Item>
-          <Form.Item name="name" label="Task name" rules={[{ required: true, message: 'Enter a task name' }]}
+          <Form.Item name="name" label={t('form.taskName')} rules={[{ required: true, message: t('form.taskNameRequired') }]}
           >
-            <Input prefix={<PlusOutlined />} placeholder="Task name" />
+            <Input prefix={<PlusOutlined />} placeholder={t('form.taskNamePlaceholder')} />
           </Form.Item>
-          <Form.Item name="resource" label="Owner">
-            <Input placeholder="Owner" />
+          <Form.Item name="resource" label={t('form.owner')}>
+            <Input placeholder={t('form.ownerPlaceholder')} />
           </Form.Item>
-          <Form.Item name="fillColor" label="Fill color" rules={[{ required: true, message: 'Choose a color' }]}
+          <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
           >
             <Space.Compact style={{ width: '100%' }}>
               <Input
@@ -862,8 +885,8 @@ export default function App() {
 
       <Modal
         open={settingsOpen}
-        title="Settings"
-        okText="Apply"
+        title={t('modal.settingsTitle')}
+        okText={t('modal.apply')}
         width={900}
         onCancel={() => setSettingsOpen(false)}
         onOk={handleApplySettings}
@@ -871,88 +894,88 @@ export default function App() {
         <Form layout="vertical" form={settingsForm}>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="unitWidth" label="Unit width">
+              <Form.Item name="unitWidth" label={t('form.unitWidth')}>
                 <InputNumber min={40} max={400} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="taskNamePaddingLeft" label="Task name padding">
+              <Form.Item name="taskNamePaddingLeft" label={t('form.taskNamePadding')}>
                 <InputNumber min={0} max={100} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="timeScaleHeight" label="Time scale height">
+              <Form.Item name="timeScaleHeight" label={t('form.timeScaleHeight')}>
                 <InputNumber min={10} max={80} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="milestoneTopHeight" label="Milestone top height">
+              <Form.Item name="milestoneTopHeight" label={t('form.milestoneTopHeight')}>
                 <InputNumber min={10} max={80} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="barHeight" label="Bar height">
+              <Form.Item name="barHeight" label={t('form.barHeight')}>
                 <InputNumber min={10} max={80} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="barMargin" label="Bar margin">
+              <Form.Item name="barMargin" label={t('form.barMargin')}>
                 <InputNumber min={0} max={30} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="scrollSpeed" label="Scroll speed">
+              <Form.Item name="scrollSpeed" label={t('form.scrollSpeed')}>
                 <InputNumber min={1} max={100} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="mockTaskSize" label="Mock task size">
+              <Form.Item name="mockTaskSize" label={t('form.mockTaskSize')}>
                 <InputNumber min={0} max={1000} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="view" label="View">
+              <Form.Item name="view" label={t('form.view')}>
                 <Select
                   options={[
-                    { label: 'All', value: 'all' },
-                    { label: 'This week', value: 'week' },
-                    { label: 'This month', value: 'month' }
+                    { label: t('toolbar.all'), value: 'all' },
+                    { label: t('toolbar.thisWeek'), value: 'week' },
+                    { label: t('toolbar.thisMonth'), value: 'month' }
                   ]}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="filter" label="Filter color">
+              <Form.Item name="filter" label={t('form.filterColor')}>
                 <Input placeholder="#RRGGBB" />
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="includeHoliday" label="Include holiday" valuePropName="checked">
+              <Form.Item name="includeHoliday" label={t('form.includeHoliday')} valuePropName="checked">
                 <Switch size="small" />
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="useLocal" label="Use local" valuePropName="checked">
+              <Form.Item name="useLocal" label={t('form.useLocal')} valuePropName="checked">
                 <Switch size="small" />
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="useRemote" label="Use remote" valuePropName="checked">
+              <Form.Item name="useRemote" label={t('form.useRemote')} valuePropName="checked">
                 <Switch size="small" />
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="showFilter" label="Show filter" valuePropName="checked">
+              <Form.Item name="showFilter" label={t('form.showFilter')} valuePropName="checked">
                 <Switch size="small" />
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="showArrow" label="Show arrows" valuePropName="checked">
+              <Form.Item name="showArrow" label={t('form.showArrows')} valuePropName="checked">
                 <Switch size="small" />
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="debug" label="Debug" valuePropName="checked">
+              <Form.Item name="debug" label={t('form.debug')} valuePropName="checked">
                 <Switch size="small" />
               </Form.Item>
             </Col>
