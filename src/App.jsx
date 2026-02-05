@@ -3,6 +3,7 @@ import {
   Button,
   ColorPicker,
   DatePicker,
+  Dropdown,
   Form,
   Input,
   InputNumber,
@@ -13,17 +14,21 @@ import {
   Select,
   Space,
   Tag,
+  Tooltip,
   Typography
 } from 'antd';
 import {
   AimOutlined,
   CopyOutlined,
+  DownloadOutlined,
   DeleteOutlined,
   EditOutlined,
   FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
   SettingOutlined,
+  DownOutlined,
+  UpOutlined,
   UploadOutlined
 } from '@ant-design/icons';
 import { Row, Col } from 'antd';
@@ -204,6 +209,7 @@ export default function App() {
   const ganttRef = useRef(null);
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const jsonInputRef = useRef(null);
   const [scrollX, setScrollX] = useState(initLastScrollX);
   const [filterColors, setFilterColors] = useState([]);
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
@@ -213,6 +219,7 @@ export default function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createPos, setCreatePos] = useState({ posX: 0, posY: 0 });
   const [createColor, setCreateColor] = useState(DEFAULT_COLOR);
+  const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -355,6 +362,90 @@ export default function App() {
     fileInputRef.current?.click();
   };
 
+  const handleExportData = () => {
+    const payload = {
+      tasks: JSON.parse(localStorage.getItem('tasks') || 'null') ?? window.tasks ?? [],
+      mileStones: JSON.parse(localStorage.getItem('mileStones') || 'null') ?? window.mileStones ?? [],
+      gantt_setting: JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null') ?? null
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'gantt_export.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportDataClick = () => {
+    jsonInputRef.current?.click();
+  };
+
+  const handleImportDataFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (data.tasks) {
+        localStorage.setItem('tasks', JSON.stringify(data.tasks));
+      }
+      if (data.mileStones) {
+        localStorage.setItem('mileStones', JSON.stringify(data.mileStones));
+      }
+      if (data.gantt_setting) {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(data.gantt_setting));
+      }
+      Modal.success({
+        title: 'Import complete',
+        content: 'Local data has been imported. The page will reload to apply changes.'
+      });
+      setTimeout(() => location.reload(), 300);
+    } catch (error) {
+      Modal.error({
+        title: 'Import failed',
+        content: 'Invalid JSON file.'
+      });
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const dataMenuItems = [
+    {
+      key: 'import-ics',
+      label: (
+        <Tooltip title="Import Apple Calendar .ics" placement="right">
+          Import .ics
+        </Tooltip>
+      ),
+      icon: <UploadOutlined />,
+      onClick: handleImportClick
+    },
+    {
+      key: 'export-json',
+      label: (
+        <Tooltip title="Export tasks, milestones, and settings as JSON" placement="right">
+          Export data (JSON)
+        </Tooltip>
+      ),
+      icon: <DownloadOutlined />,
+      onClick: handleExportData
+    },
+    {
+      key: 'import-json',
+      label: (
+        <Tooltip title="Import tasks, milestones, and settings from JSON" placement="right">
+          Import data (JSON)
+        </Tooltip>
+      ),
+      icon: <UploadOutlined />,
+      onClick: handleImportDataClick
+    }
+  ];
+
   const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -491,27 +582,43 @@ export default function App() {
             <Tag color="blue">Scroll X: {scrollX}</Tag>
           </Space>
           <Space className="toolbar-group" size="middle">
-            <Button icon={<AimOutlined />} onClick={handleReset}>
-              Today
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={() => ganttRef.current?.redraw()}>
-              Refresh
-            </Button>
-            <Button icon={<SettingOutlined />} onClick={handleOpenSettings}>
-              Settings
-            </Button>
-            <Button icon={<PlusOutlined />} onClick={handleCreateClick}>
-              Create task
-            </Button>
-            <Button icon={<UploadOutlined />} onClick={handleImportClick}>
-              Import .ics
-            </Button>
-            <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
-              Clear tasks
-            </Button>
-            <Button danger icon={<DeleteOutlined />} onClick={handleClearMilestones}>
-              Clear milestones
-            </Button>
+            <Tooltip title="Scroll to today">
+              <Button icon={<AimOutlined />} onClick={handleReset}>
+                Today
+              </Button>
+            </Tooltip>
+            <Tooltip title="Open settings">
+              <Button icon={<SettingOutlined />} onClick={handleOpenSettings}>
+                Settings
+              </Button>
+            </Tooltip>
+            <Tooltip title="Create a new task">
+              <Button icon={<PlusOutlined />} onClick={handleCreateClick}>
+                Create task
+              </Button>
+            </Tooltip>
+            <Dropdown
+              menu={{ items: dataMenuItems }}
+              placement="bottomLeft"
+              trigger={['click']}
+              onOpenChange={setDataMenuOpen}
+            >
+              <Tooltip title={dataMenuOpen ? '' : 'Import / Export'}>
+                <Button icon={<UploadOutlined />}>
+                  Data {dataMenuOpen ? <UpOutlined /> : <DownOutlined />}
+                </Button>
+              </Tooltip>
+            </Dropdown>
+            <Tooltip title="Clear all tasks">
+              <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
+                Clear tasks
+              </Button>
+            </Tooltip>
+            <Tooltip title="Clear all milestones">
+              <Button danger icon={<DeleteOutlined />} onClick={handleClearMilestones}>
+                Clear milestones
+              </Button>
+            </Tooltip>
           </Space>
         </div>
         <input
@@ -520,6 +627,13 @@ export default function App() {
           accept=".ics,text/calendar"
           style={{ display: 'none' }}
           onChange={handleFileChange}
+        />
+        <input
+          ref={jsonInputRef}
+          type="file"
+          accept="application/json"
+          style={{ display: 'none' }}
+          onChange={handleImportDataFile}
         />
         {showFilter && (
           <div style={{ marginTop: 12 }}>
