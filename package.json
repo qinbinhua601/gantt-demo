@@ -24,10 +24,15 @@
         "url": "https://github.com/qinbinhua601/gantt-demo/issues"
     },
     "dependencies": {
+        "@ant-design/icons": "^5.3.7",
+        "antd": "^5.15.4",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
         "vite": "^5.0.11",
         "zrender": "^5.4.4"
     },
     "devDependencies": {
+        "@vitejs/plugin-react": "^4.2.1",
         "gh-pages": "^6.1.1"
     }
 }

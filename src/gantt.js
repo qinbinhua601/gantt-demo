@@ -1,0 +1,729 @@
+import * as zrender from 'zrender'
+import { hachureLines } from './hachure'
+import { isHoliday } from './holidays'
+import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilterItems } from './utils'
+import { createFlagGroup } from './flag'
+import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
+import { drawTodayLine } from './today'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile } from './const'
+
+export function initGantt({
+  container,
+  onScrollXChange,
+  onEditTask,
+  onContextMenu,
+  onHideContextMenu,
+  onCreateTask,
+  onDataChange
+}) {
+  if (!container) {
+    throw new Error('Gantt container is required')
+  }
+
+  let lastHandleMove = null
+
+  // 默认设置到今天左边一格
+  let lastScrollX = 0 + initLastScrollX, lastScrollY = 0
+
+  const notifyScrollX = () => {
+    onScrollXChange?.(lastScrollX)
+  }
+
+  const notifyDataChange = (reason = 'update') => {
+    const colors = updateFilterItems(window.tasks || [])
+    onDataChange?.({
+      reason,
+      tasks: window.tasks,
+      mileStones: window.mileStones,
+      colors
+    })
+  }
+
+  // Initialize ZRender
+  const zr = zrender.init(container, {
+    renderer: 'canvas'
+  })
+
+  // Define tasks for the Gantt chart
+  const tasks = useLocal ? getLocal() : [
+    { name: "Task 1", start: todayOffset + 0, duration: 3, resource: "John", fillColor: getRandomColor() },
+    { name: "Task 2", start: todayOffset + 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
+    { name: "Task 3 long long long", start: todayOffset + 7, duration: 1, resource: "Bob", fillColor: getRandomColor() },
+    { name: "Task 4", start: todayOffset + 8, duration: 2, resource: "Bose", fillColor: getRandomColor() },
+    { name: "Task 5", start: todayOffset + 10, duration: 3, resource: "Uno", fillColor: getRandomColor() },
+    {}
+    // Add more tasks as needed
+  ]
+
+  const lastTask = tasks.pop()
+  while (tasks.length > 1 && tasks.length < mockTaskSize) {
+    tasks.push(...tasks.map(item => ({ ...item })))
+  }
+  tasks.push(lastTask)
+
+  window.tasks = tasks
+
+  // Define the milestones
+  const mileStones = useLocal ? getLocal('mileStones') : [
+    { start: 10, name: '提测' }
+  ]
+  window.mileStones = mileStones
+
+  if (isMobile) {
+    let lastTouchX
+
+    zr.dom.addEventListener('touchstart', function (event) {
+      if (currentGroup?.resizing || currentGroup?.dragging) {
+        return
+      }
+      lastTouchX = event.touches[0].clientX
+    })
+
+    zr.dom.addEventListener('touchmove', function (event) {
+      if (currentGroup?.resizing || currentGroup?.dragging) {
+        return
+      }
+      event.preventDefault()
+      let deltaX = event.touches[0].clientX - lastTouchX
+      lastTouchX = event.touches[0].clientX
+      lastScrollX -= Math.floor(deltaX)
+      redrawChart(true, lastScrollX, 0)
+      notifyScrollX()
+    })
+  } else {
+    // 点击其他区域隐藏ContextMenu
+    zr.dom.addEventListener('click', function () {
+      onHideContextMenu?.()
+    })
+    zr.on('mousewheel', function (e) {
+      e.event.preventDefault()
+      // set speed for the scroll
+      lastScrollX -= Math.floor(e.event.wheelDeltaX * 0.01 * scrollSpeed)
+      redrawChart(true, lastScrollX, 0)
+      notifyScrollX()
+    })
+  }
+
+  const resizeHandler = function () {
+    zr.resize()
+    redrawChart(true)
+  }
+
+  // redraw when browser window size change
+  window.addEventListener('resize', resizeHandler)
+
+  let isFirstFlag = true
+  function redrawChart(clear = false, scrollX = lastScrollX, scrollY = 0) {
+    const isFirst = isFirstFlag
+    if (isFirstFlag) {
+      isFirstFlag = false
+    }
+    // margin left to the container
+    const chartStartX = initChartStartX - scrollX
+    // margin top to the container
+    const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestoneTopHeight) - scrollY
+    // clear the painter
+    clear && zr.clear()
+    const canvasWidth = zr.getWidth()
+    const canvasHeight = zr.getHeight()
+
+    const boundingLeft = Math.floor(lastScrollX / unitWidth)
+    const boundingRight = Math.floor((lastScrollX + canvasWidth) / unitWidth)
+    // hover day grid to add task
+    let lastPos
+    let lastDayRect
+    function handleMove(e) {
+      if (currentGroup?.resizing || currentGroup?.dragging) {
+        return
+      }
+      const x = e.event.zrX - chartStartX
+      const y = e.event.zrY - chartStartY
+      const posX = Math.floor(x / unitWidth)
+      const posY = Math.floor(y / (barHeight + barMargin))
+      if (lastPos !== [posX, posY].join()) {
+        lastPos = [posX, posY].join()
+        if (posY >= 0 && posY < tasks.length) {
+          const hasTask = posY !== tasks.length - 1 // 只能在最后一行插入新任务
+          if (hasTask) {
+            lastDayRect && zr.remove(lastDayRect)
+            return
+          }
+          const dayHoverGroup = new zrender.Group()
+          dayHoverGroup.on('click', function () {
+            if (onCreateTask) {
+              onCreateTask({ posX, posY })
+              return
+            }
+            const taskName = prompt('task name?')
+            if (!taskName) return
+            const resourceName = prompt('assign to who?') || defaultTaskOwner
+            tasks.splice(posY, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
+            syncLocal()
+            notifyDataChange('create')
+            redrawChart(true)
+          })
+          // draw the hover rect on the day grid
+          const dayRect = new zrender.Rect({
+            shape: {
+              x: chartStartX + unitWidth * posX + 5,
+              y: chartStartY + (barHeight + barMargin) * posY,
+              width: unitWidth - 10,
+              height: barHeight + barMargin,
+            },
+            style: {
+              fill: 'transparent',
+              stroke: 'gray',
+              lineDash: [5, 7]
+            },
+            z: 100
+          })
+          const rowHoverRect = new zrender.Rect({
+            shape: {
+              x: chartStartX + lastScrollX,
+              y: chartStartY + (barHeight + barMargin) * posY,
+              width: unitWidth * timeScaleWidth,
+              height: barHeight + barMargin,
+            },
+            style: {
+              fill: 'rgba(221, 221, 221, 0.3)',
+            },
+            z: 1
+          })
+
+          const lineH = new zrender.Line({
+            shape: {
+              x1: chartStartX + unitWidth * posX + unitWidth / 2 - 5,
+              y1: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2,
+              x2: chartStartX + unitWidth * posX + unitWidth / 2 + 5,
+              y2: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2
+            },
+            style: {
+              stroke: 'gray'
+            },
+            z: 100
+          })
+          const lineV = new zrender.Line({
+            shape: {
+              x1: chartStartX + unitWidth * posX + unitWidth / 2,
+              y1: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2 - 5,
+              x2: chartStartX + unitWidth * posX + unitWidth / 2,
+              y2: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2 + 5
+            },
+            style: {
+              stroke: 'gray'
+            },
+            z: 100
+          })
+          dayHoverGroup.add(dayRect)
+          dayHoverGroup.add(lineH)
+          dayHoverGroup.add(lineV)
+          dayHoverGroup.add(rowHoverRect)
+          lastDayRect && zr.remove(lastDayRect)
+          lastDayRect = dayHoverGroup
+          zr.add(dayHoverGroup)
+        } else {
+          lastDayRect && zr.remove(lastDayRect)
+        }
+      }
+    }
+    lastHandleMove && zr.off('mousemove', lastHandleMove)
+    lastHandleMove = handleMove
+    zr.on('mousemove', handleMove)
+
+    const timeScaleWidth = Math.ceil((canvasWidth) / unitWidth)
+    // Draw time scale
+    const timeScale = new zrender.Rect({
+      shape: {
+        x: chartStartX + lastScrollX,
+        y: chartStartY - timeScaleHeight,
+        width: timeScaleWidth * unitWidth,
+        height: timeScaleHeight
+      },
+      style: {
+        fill: "rgba(255, 0,0, .2)"
+      }
+    })
+    zr.add(timeScale)
+
+    // Draw vertical grid lines
+    const gridStartX = chartStartX
+    const gridEndX = timeScaleWidth * unitWidth
+    const gridLineCount = timeScaleWidth + 1
+    const deltaScrollX = Math.floor(lastScrollX / unitWidth)
+    for (let i = 0 + deltaScrollX, count = 0; count < gridLineCount; i++, count++) {
+      const viewPortTaskLength = Math.min(tasks.length, (canvasHeight - chartStartY) / (barHeight + barMargin))
+      const gridX = gridStartX + i * unitWidth
+      const gridLine = new zrender.Line({
+        shape: {
+          x1: gridX,
+          y1: chartStartY - timeScaleHeight,
+          x2: gridX,
+          y2: chartStartY + (barHeight + barMargin) * viewPortTaskLength
+        },
+        style: {
+          stroke: "lightgray"
+        }
+      })
+
+      // Draw the date
+      if (count < gridLineCount - 1) {
+        const now = +new Date('2024-01-01')
+        const currentDate = now + i * 60 * 1000 * 60 * 24
+        const dateInfo = isHoliday(currentDate)
+        // Draw the hachure fill 画斜线
+        if (dateInfo.isHoliday) {
+          try {
+            const lines = hachureLines([
+              [chartStartX + i * unitWidth, chartStartY],
+              [chartStartX + i * unitWidth + unitWidth, chartStartY],
+              [chartStartX + i * unitWidth + unitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength],
+              [chartStartX + i * unitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength]
+            ], 10, 45)
+            lines.forEach(line => {
+              const [x1, y1] = line[0]
+              const [x2, y2] = line[1]
+              const l = new zrender.Line({
+                shape: {
+                  x1, y1, x2, y2
+                },
+                style: {
+                  stroke: 'rgba(221, 221, 221, 0.7)'
+                }
+              })
+              zr.add(l)
+            })
+          } catch (error) {
+            console.log(error)
+          }
+        }
+        // 画日期文字
+        const dateText = new zrender.Text({
+          style: {
+            text: dateInfo.dateString,
+            x: gridX,
+            y: chartStartY - timeScaleHeight,
+          },
+          z: 1
+        })
+        const [flagGroup] = createFlagGroup(zr, gridX, halfUnitWidth, chartStartY, timeScaleHeight)
+        dateText.on('click', function () {
+          const index = mileStones.findIndex(item => item.start === i)
+          if (index === -1) {
+            if (confirm('Do you want to CREATE a milestone here?')) {
+              const mileStoneName = prompt('mileStone name?')
+              mileStones.push({
+                start: i,
+                name: mileStoneName
+              })
+              syncLocal()
+              notifyDataChange('milestone')
+            }
+          } else {
+            if (confirm('Do you want to DELETE the milestone here?')) {
+              mileStones.splice(index, 1)
+              syncLocal()
+              notifyDataChange('milestone')
+            }
+          }
+          redrawChart(true)
+        })
+        dateText.on('mouseover', function () {
+          this.attr({
+            style: {
+              opacity: 0
+            }
+          })
+          flagGroup.show()
+        })
+        dateText.on('mouseout', function () {
+          this.attr({
+            style: {
+              opacity: 1
+            }
+          })
+          flagGroup.hide()
+        })
+
+        const { width, height } = dateText.getBoundingRect()
+        dateText.attr({
+          style: {
+            x: gridX - width / 2 + halfUnitWidth,
+            y: chartStartY - timeScaleHeight - height / 2 + timeScaleHeight / 2,
+          }
+        })
+        zr.add(dateText)
+      }
+      zr.add(gridLine)
+    }
+
+    // Draw horizontally grid lines
+    const gridLineCountY = tasks.length + 1
+
+    for (let j = 0; j < 1; j++) {
+      const gridY = chartStartY + j * (barHeight + barMargin)
+      const gridLineY = new zrender.Line({
+        shape: {
+          x1: chartStartX,
+          y1: gridY,
+          x2: gridEndX + chartStartX,
+          y2: gridY
+        },
+        style: {
+          stroke: "lightgray"
+        }
+      })
+      zr.add(gridLineY)
+    }
+
+    // Draw today line
+    drawTodayLine(zr, chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin, todayOffset)
+
+    // Draw milestones
+    mileStones.forEach(function (item) {
+      const milestone = new zrender.Rect({
+        shape: {
+          x: chartStartX + item.start * unitWidth - 1,
+          y: chartStartY - timeScaleHeight,
+          width: 2,
+          height: tasks.length * (barHeight + barMargin) + timeScaleHeight
+        },
+        style: {
+          fill: "rgba(255, 0, 0, 1)"
+        },
+        z: 1
+      })
+      const milestone_top = new zrender.Rect({
+        shape: {
+          x: chartStartX + item.start * unitWidth - 1,
+          y: chartStartY - timeScaleHeight - milestoneTopHeight,
+          width: 10,
+          height: milestoneTopHeight
+        },
+        style: {
+          fill: "rgba(255, 0, 0, 1)"
+        },
+        z: 1
+      })
+      const milestone_top_text = new zrender.Text({
+        style: {
+          x: chartStartX + item.start * unitWidth - 1 + 10,
+          y: chartStartY - timeScaleHeight - milestoneTopHeight,
+          text: item.name || '里程碑',
+          fill: "white",
+          lineHeight: milestoneTopHeight,
+          fontSize: 12
+        },
+        z: 1
+      })
+      const milestone_top_text_rect = milestone_top_text.getBoundingRect()
+      milestone_top.attr({
+        shape: {
+          width: milestone_top_text_rect.width + 10 * 2,
+        }
+      })
+      zr.add(milestone)
+      zr.add(milestone_top)
+      zr.add(milestone_top_text)
+    })
+
+    let drawTaskBar = 0
+    // Draw tasks, resource assignments, and task bars
+    tasks.forEach(function (task, index) {
+      if (!task?.name) return
+      // perf: 在视口外跳过
+      if (index > Math.floor((canvasHeight - chartStartY) / (barHeight + barMargin))) return
+      const showLeftArrow = task.start <= boundingLeft, showRightArrow = (task.start + task.duration) > boundingRight
+
+      // Calculate position and dimensions
+      const x = chartStartX + task.start * unitWidth
+      const y = chartStartY + (barHeight + barMargin) * index
+      const width = task.duration * unitWidth
+      const taskBarRect = {
+        width,
+        height: barHeight
+      }
+
+      const leftArrow = createLeftArrowRect(x, y, task, taskBarRect, showLeftArrow, boundingLeft, function () {
+        lastScrollX = (task.start - 3) * unitWidth
+        notifyScrollX()
+        redrawChart(true)
+      })
+      const rightArrow = createRightArrowRect(x, y, task, unitWidth, lastScrollX, canvasWidth, taskBarRect, showRightArrow, boundingRight, function () {
+        lastScrollX = (task.start + task.duration + 3) * unitWidth - canvasWidth
+        notifyScrollX()
+        redrawChart(true)
+      })
+      leftArrow && zr.add(leftArrow)
+      rightArrow && zr.add(rightArrow)
+      if (task.start > boundingRight || (task.start + task.duration) < boundingLeft) return
+      drawTaskBar++
+      // Create a group to hold task elements
+      const group = new zrender.Group({
+        x,
+        y,
+        draggable: !isMobile
+      })
+      // Create a rectangle shape for each task
+      const rect = new zrender.Rect({
+        shape: {
+          x: 0,
+          y: 0,
+          width: width,
+          height: barHeight,
+          r: 6
+        },
+        style: {
+          fill: task.fillColor
+        },
+        cursor: 'move'
+      })
+      group.add(rect)
+      group.index = index
+
+      const w = 6
+      const box = rect.getBoundingRect()
+      const leftBar = getLeftHandleBar(w, box, taskBarRect, redrawChart)
+      leftBar.taskBar = rect
+      group.add(leftBar)
+
+      const rightBar = getRightHandleBar(w, box, taskBarRect, redrawChart)
+      rightBar.taskBar = rect
+      group.add(rightBar)
+
+      group.on("mouseover", function () {
+        if (this.dragging) return
+
+        rect.attr("style", { fill: zrender.color.lift(task.fillColor, 0.3) })
+      })
+
+      group.on("mouseout", function () {
+        if (this.dragging || this.resizing) return
+        rect.attr("style", { fill: task.fillColor })
+      })
+
+      // Create a text shape for task name
+      const taskName = new zrender.Text({
+        style: {
+          text: task.name,
+          x: taskNamePaddingLeft,
+          y: barHeight / 2 - 12 / 2,
+          textFill: "white",
+          textAlign: "left",
+          textVerticalAlign: "middle",
+          fill: "white"
+        },
+        cursor: 'move'
+      })
+
+      // Create a text for duration
+      const realDuration = getRealDuration(task, includeHoliday)
+      const taskDuration = new zrender.Text({
+        style: {
+          text: `${realDuration}d`,
+          x: width - 30,
+          y: barHeight / 2 - 12 / 2,
+          textFill: "white",
+          textAlign: "left",
+          textVerticalAlign: "middle",
+          fill: "white"
+        }
+      })
+
+      // Create a text for resource
+      const resourceText = new zrender.Text({
+        style: {
+          text: task.resource,
+          x: width + 5,
+          y: barHeight / 2 - 12 / 2,
+          textFill: "black",
+          textAlign: "left",
+          textVerticalAlign: "middle",
+          fill: "black"
+        }
+      })
+
+      group.add(taskName)
+      group.add(taskDuration)
+      group.add(resourceText)
+
+      // drag logic
+      let dragStartX = 0
+      let lastPosY = null
+      let lastBottomLine = null
+      group.on("dragstart", function (e) {
+        if (this.resizing) return
+        dragStartX = e.event.zrX
+        setCurrentGroup(this)
+      })
+      group.on("drag", function (e) {
+        if (this.resizing) return
+        const y = e.event.zrY - chartStartY
+        const posY = Math.floor(y / (barHeight + barMargin))
+        if (lastPosY !== posY) {
+          lastPosY = posY
+          zr.remove(lastBottomLine)
+          const bottomLine = getTaskBarMoveLine(chartStartX, chartStartY, lastScrollX, timeScaleWidth, posY)
+          lastBottomLine = bottomLine
+          bottomLine && zr.add(bottomLine)
+          zr.refresh()
+        }
+      })
+      group.on("dragend", function (e) {
+        if (this.isContextMenu) {
+          this.isContextMenu = false
+          return
+        }
+        this.isDragging = false
+        if (this.resizing) {
+          this.resizing = false
+          return
+        }
+        const deltaX = e.event.zrX - dragStartX
+        const dir = deltaX < 0 ? -1 : 1
+        const delta = Math.abs(deltaX)
+        const mod = delta % unitWidth
+        const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth))
+        const y = e.event.zrY - chartStartY
+        const posY = Math.floor(y / (barHeight + barMargin))
+        const offsetY = posY - index
+        task.start += offsetX
+        if (lastBottomLine && posY !== index) {
+          tasks.splice(index, 1)
+          tasks.splice(posY > index ? posY - 1 : posY, 0, { ...task })
+        }
+        if (offsetX || offsetY) {
+          syncLocal()
+          notifyDataChange('move')
+        }
+        setCurrentGroup(null)
+        redrawChart(true)
+      })
+      group.eachChild(function (child) {
+        child.attr({
+          z: 10
+        })
+      })
+
+      group.on("dblclick", function () {
+        onEditTask?.({
+          index: this.index,
+          task: tasks[this.index]
+        })
+      })
+
+      group.on("contextmenu", function (e) {
+        this.isContextMenu = true
+        e.event.preventDefault()
+        const { zrX: x, zrY: y } = e.event
+        const { left, top } = container.getBoundingClientRect()
+        onContextMenu?.({
+          index: this.index,
+          x: x + left,
+          y: y + top
+        })
+      })
+
+      zr.add(group)
+    })
+
+    // 如果屏幕里没有任务条，调整到第一个
+    if (isFirst && drawTaskBar === 0) {
+      if (tasks.length > 0) {
+        lastScrollX += (tasks[0].start - boundingLeft - 1) * unitWidth
+        notifyScrollX()
+        redrawChart(true)
+      }
+    }
+
+    debug && console.log({
+      drawTaskBar
+    })
+  }
+
+  window.redrawChart = redrawChart
+
+  if (useRemote) {
+    document.title += ' (Remote)'
+    initData(zr, () => {
+      redrawChart(true)
+      notifyDataChange('init')
+    })
+  } else {
+    if (filter) {
+      updateData('tasks', tasks.filter(item => item.fillColor === filter))
+    }
+    redrawChart()
+    notifyDataChange('init')
+  }
+
+  notifyScrollX()
+
+  const api = {
+    resetScroll() {
+      lastScrollX = initLastScrollX
+      lastScrollY = 0
+      notifyScrollX()
+      redrawChart(true)
+    },
+    clearTasks() {
+      const oldTaskLength = tasks.length
+      tasks.length = 0
+      for (let i = 0; i < oldTaskLength; i++) {
+        tasks.push({})
+      }
+      syncLocal()
+      notifyDataChange('clear')
+      redrawChart(true)
+    },
+    clearMilestones() {
+      mileStones.length = 0
+      syncLocal('mileStones')
+      notifyDataChange('milestone')
+      redrawChart(true)
+    },
+    copyTask(index) {
+      const curTask = { ...tasks[index], duration: 1 }
+      tasks.splice(index + 1, 0, curTask)
+      syncLocal()
+      notifyDataChange('copy')
+      redrawChart(true)
+    },
+    deleteTask(index) {
+      tasks.splice(index, 1)
+      syncLocal()
+      notifyDataChange('delete')
+      redrawChart(true)
+    },
+    updateTask(index, values) {
+      tasks.splice(index, 1, { ...tasks[index], ...values })
+      syncLocal()
+      notifyDataChange('edit')
+      redrawChart(true)
+    },
+    addTaskAt({ posX, posY }, values) {
+      const task = {
+        name: values.name,
+        start: posX,
+        duration: 1,
+        resource: values.resource || defaultTaskOwner,
+        fillColor: values.fillColor || getRandomColor()
+      }
+      tasks.splice(posY, 0, task)
+      syncLocal()
+      notifyDataChange('create')
+      redrawChart(true)
+    },
+    redraw() {
+      redrawChart(true)
+    },
+    getFilterColors() {
+      return updateFilterItems(tasks)
+    },
+    destroy() {
+      window.removeEventListener('resize', resizeHandler)
+      zr.dispose()
+    }
+  }
+
+  return api
+}

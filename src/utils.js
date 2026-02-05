@@ -156,13 +156,18 @@ function onColorPickerClick(e) {
 // 更新过滤选择器
 export function updateFilterItems(data) {
   // 必须有数据存储，否则过滤没有意义，因为颜色是随机的
-  if (!useLocal && !useRemote) return
-  if (!showFilter) return
-  if (!data) return
+  if (!useLocal && !useRemote) return []
+  if (!showFilter) return []
+  if (!data) return []
   const tasks = data
+  const colors = [...new Set(tasks.map(({ fillColor }) => fillColor)), '']
+    .filter(item => item !== undefined)
   const $colorPicker = document.querySelector('#color-picker');
-  $colorPicker.removeEventListener('click', onColorPickerClick);
-  $colorPicker.addEventListener('click', onColorPickerClick);
-  const contents = [...new Set(tasks.map(({ fillColor }) => fillColor)), ''].filter(item => item !== undefined).map(color => `<div data-color="${color}" style="background-color: ${color};"></div>`);
-  $colorPicker.innerHTML = contents.join('');
+  if ($colorPicker) {
+    $colorPicker.removeEventListener('click', onColorPickerClick);
+    $colorPicker.addEventListener('click', onColorPickerClick);
+    const contents = colors.map(color => `<div data-color="${color}" style="background-color: ${color};"></div>`);
+    $colorPicker.innerHTML = contents.join('');
+  }
+  return colors
 }

@@ -42,10 +42,6 @@ export const todayOffset = Math.floor((+new Date() - +new Date('2024-01-01')) / 
 
 export const initLastScrollX = (todayOffset - 1) * unitWidth
 
-// 显示scrollX的值
-export const $lastScrollXSpan = document.querySelector('#last-scroll-x');
-$lastScrollXSpan.innerText = initLastScrollX;
-
 // 过滤色
 export const filter = getParamsFromSearch('filter', false) ?? null;
 

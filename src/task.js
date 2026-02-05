@@ -1,3 +1,4 @@
+import * as zrender from 'zrender'
 import { isHoliday } from './holidays'
 import { syncLocal } from './utils'
 import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize, showArrow } from './const'
