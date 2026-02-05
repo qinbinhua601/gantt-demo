@@ -33,7 +33,8 @@ export const useLocal = getParamsFromSearch('useLocal');
 // if use remote data
 export const useRemote = getParamsFromSearch('useRemote');
 // query view
-export const view = getParamsFromSearch('view', false) ?? ''
+export const view = getParamsFromSearch('view', false) ?? 'week'
+export const viewDate = getParamsFromSearch('viewDate', false) ?? ''
 
 // mockTaskSize for test only enabled when useLocal is false
 export const mockTaskSize = !useRemote && !useLocal && getParamsFromSearch('mockTaskSize') ? Number(getParamsFromSearch('mockTaskSize')) : 0;

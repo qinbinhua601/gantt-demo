@@ -6,7 +6,7 @@ import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilter
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
-import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs, view } from './const'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs, view, viewDate } from './const'
 
 export function initGantt({
   container,
@@ -60,7 +60,7 @@ export function initGantt({
 
   const getViewRange = () => {
     if (!view) return null
-    const today = new Date()
+    const today = viewDate ? new Date(viewDate) : new Date()
     if (view === 'week') {
       const day = today.getDay()
       const mondayOffset = (day + 6) % 7

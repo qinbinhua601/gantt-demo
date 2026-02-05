@@ -27,6 +27,8 @@ import {
   FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
+  LeftOutlined,
+  RightOutlined,
   SettingOutlined,
   DownOutlined,
   UpOutlined,
@@ -55,7 +57,8 @@ import {
   mockTaskSize,
   showArrow,
   debug,
-  view
+  view,
+  viewDate
 } from './const';
 import { getRandomColor } from './utils';
 
@@ -583,8 +586,39 @@ export default function App() {
     } else {
       params.delete('view');
     }
+    if (nextView !== 'week' && nextView !== 'month') {
+      params.delete('viewDate');
+    }
     const stored = loadStoredSettings() || {};
     saveStoredSettings({ ...stored, view: nextView });
+    const query = params.toString();
+    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+  };
+
+  const handleWeekNavigate = (direction) => {
+    const params = new URLSearchParams(location.search);
+    const anchor = viewDate ? dayjs(viewDate) : dayjs();
+    if (direction === 'current') {
+      params.delete('viewDate');
+    } else {
+      const next = anchor.add(direction * 7, 'day');
+      params.set('viewDate', next.format('YYYY-MM-DD'));
+    }
+    params.set('view', 'week');
+    const query = params.toString();
+    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+  };
+
+  const handleMonthNavigate = (direction) => {
+    const params = new URLSearchParams(location.search);
+    const anchor = viewDate ? dayjs(viewDate) : dayjs();
+    if (direction === 'current') {
+      params.delete('viewDate');
+    } else {
+      const next = anchor.add(direction, 'month');
+      params.set('viewDate', next.format('YYYY-MM-DD'));
+    }
+    params.set('view', 'month');
     const query = params.toString();
     location.href = query ? `${location.pathname}?${query}` : location.pathname;
   };
@@ -609,6 +643,32 @@ export default function App() {
                 { label: 'This month', value: 'month' }
               ]}
             />
+            {viewValue === 'week' && (
+              <Button.Group size="small">
+                <Button icon={<LeftOutlined />} onClick={() => handleWeekNavigate(-1)}>
+                  Last week
+                </Button>
+                <Button type="primary" onClick={() => handleWeekNavigate('current')}>
+                  Current week
+                </Button>
+                <Button icon={<RightOutlined />} onClick={() => handleWeekNavigate(1)}>
+                  Next week
+                </Button>
+              </Button.Group>
+            )}
+            {viewValue === 'month' && (
+              <Button.Group size="small">
+                <Button icon={<LeftOutlined />} onClick={() => handleMonthNavigate(-1)}>
+                  Last month
+                </Button>
+                <Button type="primary" onClick={() => handleMonthNavigate('current')}>
+                  Current month
+                </Button>
+                <Button icon={<RightOutlined />} onClick={() => handleMonthNavigate(1)}>
+                  Next month
+                </Button>
+              </Button.Group>
+            )}
           </Space>
           <Space className="toolbar-group" size="middle">
             <Tooltip title="Scroll to today">
