@@ -584,7 +584,11 @@ export default function App() {
           <Space className="toolbar-group" size="middle">
             <Tooltip title="Scroll to today">
               <Button icon={<AimOutlined />} onClick={handleReset}>
-                Today
+              </Button>
+            </Tooltip>
+            <Tooltip title="Create a new task">
+              <Button icon={<PlusOutlined />} onClick={handleCreateClick}>
+                Create task
               </Button>
             </Tooltip>
             <Tooltip title="Open settings">
@@ -592,9 +596,14 @@ export default function App() {
                 Settings
               </Button>
             </Tooltip>
-            <Tooltip title="Create a new task">
-              <Button icon={<PlusOutlined />} onClick={handleCreateClick}>
-                Create task
+            <Tooltip title="Clear all tasks">
+              <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
+                Clear tasks
+              </Button>
+            </Tooltip>
+            <Tooltip title="Clear all milestones">
+              <Button danger icon={<DeleteOutlined />} onClick={handleClearMilestones}>
+                Clear milestones
               </Button>
             </Tooltip>
             <Dropdown
@@ -609,16 +618,6 @@ export default function App() {
                 </Button>
               </Tooltip>
             </Dropdown>
-            <Tooltip title="Clear all tasks">
-              <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
-                Clear tasks
-              </Button>
-            </Tooltip>
-            <Tooltip title="Clear all milestones">
-              <Button danger icon={<DeleteOutlined />} onClick={handleClearMilestones}>
-                Clear milestones
-              </Button>
-            </Tooltip>
           </Space>
         </div>
         <input
@@ -699,8 +698,7 @@ export default function App() {
           >
             <Input prefix={<EditOutlined />} placeholder="Task name" />
           </Form.Item>
-          <Form.Item name="resource" label="Owner" rules={[{ required: true, message: 'Enter an owner' }]}
-          >
+          <Form.Item name="resource" label="Owner">
             <Input placeholder="Owner" />
           </Form.Item>
           <Form.Item name="fillColor" label="Fill color" rules={[{ required: true, message: 'Choose a color' }]}
@@ -752,8 +750,7 @@ export default function App() {
           >
             <Input prefix={<PlusOutlined />} placeholder="Task name" />
           </Form.Item>
-          <Form.Item name="resource" label="Owner" rules={[{ required: true, message: 'Enter an owner' }]}
-          >
+          <Form.Item name="resource" label="Owner">
             <Input placeholder="Owner" />
           </Form.Item>
           <Form.Item name="fillColor" label="Fill color" rules={[{ required: true, message: 'Choose a color' }]}
