@@ -6,7 +6,7 @@ import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilter
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
-import { t } from './i18n'
+import { getLocale, t } from './i18n'
 import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs, view, viewDate } from './const'
 
 export function initGantt({
@@ -205,6 +205,7 @@ export function initGantt({
       const totalCells = firstDayOfWeek + daysInMonth
       const weekRows = Math.ceil(totalCells / 7)
       const cellWidth = canvasWidth / 7
+      const weekdayHeaderHeight = Math.max(24, timeScaleHeight)
       const barHeightMini = 20
       const barGap = 4
       const tasksByDay = new Map()
@@ -220,7 +221,28 @@ export function initGantt({
       }
       const maxTasksInDay = Math.max(1, ...Array.from(tasksByDay.values()).map(items => items.length))
       const cellHeight = Math.max(110, 28 + maxTasksInDay * (barHeightMini + barGap))
-      const calendarStartY = chartStartY - timeScaleHeight
+      const calendarStartY = chartStartY
+      const headerY = chartStartY - weekdayHeaderHeight
+
+      const locale = (typeof getLocale === 'function' ? getLocale() : 'en')
+      const weekdayFormatter = new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : locale, { weekday: 'short' })
+      const weekdayBase = new Date(2024, 0, 1)
+      for (let col = 0; col < 7; col++) {
+        const labelDate = new Date(weekdayBase.getFullYear(), weekdayBase.getMonth(), weekdayBase.getDate() + col)
+        const weekdayText = new zrender.Text({
+          style: {
+            text: weekdayFormatter.format(labelDate),
+            x: chartStartX + col * cellWidth + cellWidth / 2,
+            y: headerY + weekdayHeaderHeight / 2,
+            textAlign: 'center',
+            textVerticalAlign: 'middle',
+            fontSize: 12,
+            fill: '#6b7280'
+          },
+          z: 2
+        })
+        zr.add(weekdayText)
+      }
 
       for (let row = 0; row < weekRows; row++) {
         for (let col = 0; col < 7; col++) {
@@ -247,8 +269,8 @@ export function initGantt({
           cellRect.on('mouseover', function () {
             this.attr({
               style: {
-                stroke: '#9ca3af',
-                lineWidth: 1
+                stroke: '#60a5fa',
+                lineWidth: 2
               }
             })
           })

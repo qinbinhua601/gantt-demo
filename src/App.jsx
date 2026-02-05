@@ -630,6 +630,7 @@ export default function App() {
   };
 
   const viewValue = view || 'all';
+  const isFixedView = viewValue === 'week' || viewValue === 'month';
 
   return (
     <Layout className="app-layout">
@@ -639,7 +640,9 @@ export default function App() {
             <Typography.Title level={4} style={{ margin: 0 }}>
               {t('app.title')}
             </Typography.Title>
-            <Tag color="blue" className="scroll-tag">{t('toolbar.scrollX', { value: scrollX })}</Tag>
+            {!isFixedView && (
+              <Tag color="blue" className="scroll-tag">{t('toolbar.scrollX', { value: scrollX })}</Tag>
+            )}
             <Segmented
               value={viewValue}
               onChange={handleViewSwitch}
@@ -677,10 +680,12 @@ export default function App() {
             )}
           </Space>
           <Space className="toolbar-group" size="middle">
-            <Tooltip title={t('toolbar.scrollToToday')}>
-              <Button icon={<AimOutlined />} onClick={handleReset}>
-              </Button>
-            </Tooltip>
+            {!isFixedView && (
+              <Tooltip title={t('toolbar.scrollToToday')}>
+                <Button icon={<AimOutlined />} onClick={handleReset}>
+                </Button>
+              </Tooltip>
+            )}
             <Tooltip title={t('toolbar.createTaskTooltip')}>
               <Button icon={<PlusOutlined />} onClick={handleCreateClick}>
                 {t('toolbar.createTask')}
