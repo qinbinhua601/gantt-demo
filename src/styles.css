@@ -33,6 +33,21 @@ body,
   align-items: center;
 }
 
+.scroll-tag {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 140px;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.data-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+}
+
 .canvas-wrapper {
   padding: 16px;
 }

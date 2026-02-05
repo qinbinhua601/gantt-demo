@@ -1,10 +1,13 @@
-import {unitWidth , halfUnitWidth} from './const'
+import { unitWidth, halfUnitWidth } from './const'
 import * as zrender from 'zrender'
 
-export function drawTodayLine(zr, chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin, todayOffset) {
+export function drawTodayLine(zr, chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin, todayOffset, unitWidthOverride, viewStartOffset = 0) {
+  const widthUnit = unitWidthOverride || unitWidth
+  const halfWidthUnit = widthUnit / 2
+  const offsetIndex = todayOffset - viewStartOffset
   const todayLine = new zrender.Rect({
     shape: {
-      x: chartStartX + todayOffset * unitWidth - 1 + halfUnitWidth,
+      x: chartStartX + offsetIndex * widthUnit - 1 + halfWidthUnit,
       y: chartStartY,
       width: 2,
       height: tasks.length * (barHeight + barMargin)
@@ -16,7 +19,7 @@ export function drawTodayLine(zr, chartStartX, chartStartY, timeScaleHeight, bar
   });
   const circle = new zrender.Circle({
     shape: {
-      cx: chartStartX + todayOffset * unitWidth + halfUnitWidth,
+      cx: chartStartX + offsetIndex * widthUnit + halfWidthUnit,
       cy: chartStartY - timeScaleHeight + timeScaleHeight + 2,
       r: 3
     },

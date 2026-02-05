@@ -12,6 +12,7 @@ import {
   Modal,
   Switch,
   Select,
+  Segmented,
   Space,
   Tag,
   Tooltip,
@@ -503,6 +504,7 @@ export default function App() {
   const handleOpenSettings = () => {
     const params = new URLSearchParams(location.search);
     const stored = loadStoredSettings() || {};
+    const resolveViewValue = (value) => (value ? value : 'all');
     const getNumber = (key, fallback) => {
       const value = params.get(key);
       if (value === null || value === '') {
@@ -530,7 +532,7 @@ export default function App() {
       showFilter: getBool('showFilter', showFilter),
       showArrow: getBool('showArrow', showArrow),
       debug: getBool('debug', debug),
-      view: params.get('view') ?? stored.view ?? view ?? '',
+      view: resolveViewValue(params.get('view') ?? stored.view ?? view ?? ''),
       filter: params.get('filter') ?? stored.filter ?? filterParam ?? ''
     });
     setSettingsOpen(true);
@@ -538,7 +540,9 @@ export default function App() {
 
   const handleApplySettings = async () => {
     const values = await settingsForm.validateFields();
-    saveStoredSettings(values);
+    const normalizedView = values.view === 'all' ? '' : values.view;
+    const normalizedValues = { ...values, view: normalizedView };
+    saveStoredSettings(normalizedValues);
     const params = new URLSearchParams(location.search);
     const setOrDelete = (key, value, fallback) => {
       if (value === undefined || value === null || value === '') {
@@ -559,7 +563,7 @@ export default function App() {
     setOrDelete('barMargin', values.barMargin, barMargin);
     setOrDelete('scrollSpeed', values.scrollSpeed, scrollSpeed);
     setOrDelete('mockTaskSize', values.mockTaskSize, mockTaskSize || 0);
-    setOrDelete('view', values.view, view || '');
+    setOrDelete('view', normalizedView, view || '');
     setOrDelete('filter', values.filter, filterParam || '');
     setOrDelete('includeHoliday', values.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
     setOrDelete('useLocal', values.useLocal ? 1 : 0, useLocal ? 1 : 0);
@@ -571,6 +575,22 @@ export default function App() {
     location.href = query ? `${location.pathname}?${query}` : location.pathname;
   };
 
+  const handleViewSwitch = (value) => {
+    const nextView = value === 'all' ? '' : value;
+    const params = new URLSearchParams(location.search);
+    if (nextView) {
+      params.set('view', nextView);
+    } else {
+      params.delete('view');
+    }
+    const stored = loadStoredSettings() || {};
+    saveStoredSettings({ ...stored, view: nextView });
+    const query = params.toString();
+    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+  };
+
+  const viewValue = view || 'all';
+
   return (
     <Layout className="app-layout">
       <Header className="app-header">
@@ -579,7 +599,16 @@ export default function App() {
             <Typography.Title level={4} style={{ margin: 0 }}>
               Gantt Planner
             </Typography.Title>
-            <Tag color="blue">Scroll X: {scrollX}</Tag>
+            <Tag color="blue" className="scroll-tag">Scroll X: {scrollX}</Tag>
+            <Segmented
+              value={viewValue}
+              onChange={handleViewSwitch}
+              options={[
+                { label: 'All', value: 'all' },
+                { label: 'This week', value: 'week' },
+                { label: 'This month', value: 'month' }
+              ]}
+            />
           </Space>
           <Space className="toolbar-group" size="middle">
             <Tooltip title="Scroll to today">
@@ -614,7 +643,7 @@ export default function App() {
             >
               <Tooltip title={dataMenuOpen ? '' : 'Import / Export'}>
                 <Button icon={<UploadOutlined />}>
-                  Data {dataMenuOpen ? <UpOutlined /> : <DownOutlined />}
+                  Data <span className="data-arrow">{dataMenuOpen ? <UpOutlined /> : <DownOutlined />}</span>
                 </Button>
               </Tooltip>
             </Dropdown>
@@ -829,7 +858,13 @@ export default function App() {
             </Col>
             <Col span={12}>
               <Form.Item name="view" label="View">
-                <Input placeholder="view" />
+                <Select
+                  options={[
+                    { label: 'All', value: 'all' },
+                    { label: 'This week', value: 'week' },
+                    { label: 'This month', value: 'month' }
+                  ]}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>

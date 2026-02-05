@@ -6,7 +6,7 @@ import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilter
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
-import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs } from './const'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs, view } from './const'
 
 export function initGantt({
   container,
@@ -54,6 +54,32 @@ export function initGantt({
       start: Number.isFinite(start) ? start : 0,
       duration: Number.isFinite(duration) && duration > 0 ? duration : 1
     }
+  }
+
+  const getOffsetFromDate = (date) => Math.floor((date.getTime() - baseDate.getTime()) / dayMs)
+
+  const getViewRange = () => {
+    if (!view) return null
+    const today = new Date()
+    if (view === 'week') {
+      const day = today.getDay()
+      const mondayOffset = (day + 6) % 7
+      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayOffset)
+      const endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 6)
+      return {
+        start: getOffsetFromDate(startDate),
+        end: getOffsetFromDate(endDate)
+      }
+    }
+    if (view === 'month') {
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      return {
+        start: getOffsetFromDate(startDate),
+        end: getOffsetFromDate(endDate)
+      }
+    }
+    return null
   }
 
   // Define tasks for the Gantt chart
@@ -130,8 +156,15 @@ export function initGantt({
     if (isFirstFlag) {
       isFirstFlag = false
     }
+    const viewRange = getViewRange()
+    const isFixedView = (view === 'week' || view === 'month') && viewRange
+    const daysInView = viewRange ? (viewRange.end - viewRange.start + 1) : 0
+    const effectiveUnitWidth = isFixedView ? (zr.getWidth() / daysInView) : unitWidth
+    const halfEffectiveUnitWidth = effectiveUnitWidth / 2
+    const viewStartOffset = isFixedView ? viewRange.start : 0
+    const viewScrollX = isFixedView ? 0 : scrollX
     // margin left to the container
-    const chartStartX = initChartStartX - scrollX
+    const chartStartX = initChartStartX - viewScrollX
     // margin top to the container
     const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestoneTopHeight) - scrollY
     // clear the painter
@@ -145,8 +178,25 @@ export function initGantt({
     tasks.length = 0
     tasks.push(...filledTasks, ...emptyTasks)
 
-    const boundingLeft = Math.floor(lastScrollX / unitWidth)
-    const boundingRight = Math.floor((lastScrollX + canvasWidth) / unitWidth)
+    const isFilteredView = Boolean(viewRange)
+    const isTaskInRange = (task) => {
+      if (!viewRange) return true
+      const start = task.start ?? 0
+      const duration = task.duration ?? 1
+      const end = start + duration - 1
+      return end >= viewRange.start && start <= viewRange.end
+    }
+    const visibleTasks = viewRange ? filledTasks.filter(isTaskInRange) : filledTasks
+    const placeholderTask = emptyTasks[0] || {}
+    const displayTasks = [...visibleTasks, placeholderTask]
+    const displayTaskEntries = displayTasks.map((task, displayIndex) => ({
+      task,
+      displayIndex,
+      taskIndex: task?.name ? Math.max(0, tasks.indexOf(task)) : tasks.length - 1
+    }))
+
+    const boundingLeft = isFixedView ? viewRange.start : Math.floor(viewScrollX / unitWidth)
+    const boundingRight = isFixedView ? viewRange.end : Math.floor((viewScrollX + canvasWidth) / unitWidth)
     // hover day grid to add task
     let lastPos
     let lastDayRect
@@ -156,26 +206,28 @@ export function initGantt({
       }
       const x = e.event.zrX - chartStartX
       const y = e.event.zrY - chartStartY
-      const posX = Math.floor(x / unitWidth)
+      const rawPosX = Math.floor(x / effectiveUnitWidth)
+      const posX = isFixedView ? viewStartOffset + rawPosX : rawPosX
       const posY = Math.floor(y / (barHeight + barMargin))
       if (lastPos !== [posX, posY].join()) {
         lastPos = [posX, posY].join()
-        if (posY >= 0 && posY < tasks.length) {
-          const hasTask = posY !== tasks.length - 1 // 只能在最后一行插入新任务
+        if (posY >= 0 && posY < displayTasks.length) {
+          const hasTask = posY !== displayTasks.length - 1 // 只能在最后一行插入新任务
           if (hasTask) {
             lastDayRect && zr.remove(lastDayRect)
             return
           }
           const dayHoverGroup = new zrender.Group()
           dayHoverGroup.on('click', function () {
+            const insertIndex = tasks.length - 1
             if (onCreateTask) {
-              onCreateTask({ posX, posY })
+              onCreateTask({ posX, posY: insertIndex })
               return
             }
             const taskName = prompt('task name?')
             if (!taskName) return
             const resourceName = prompt('assign to who?') || defaultTaskOwner
-            tasks.splice(posY, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
+            tasks.splice(insertIndex, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
             syncLocal()
             notifyDataChange('create')
             redrawChart(true)
@@ -183,9 +235,9 @@ export function initGantt({
           // draw the hover rect on the day grid
           const dayRect = new zrender.Rect({
             shape: {
-              x: chartStartX + unitWidth * posX + 5,
+              x: chartStartX + effectiveUnitWidth * (posX - viewStartOffset) + 5,
               y: chartStartY + (barHeight + barMargin) * posY,
-              width: unitWidth - 10,
+              width: effectiveUnitWidth - 10,
               height: barHeight + barMargin,
             },
             style: {
@@ -197,9 +249,9 @@ export function initGantt({
           })
           const rowHoverRect = new zrender.Rect({
             shape: {
-              x: chartStartX + lastScrollX,
+              x: chartStartX + viewScrollX,
               y: chartStartY + (barHeight + barMargin) * posY,
-              width: unitWidth * timeScaleWidth,
+              width: effectiveUnitWidth * timeScaleWidth,
               height: barHeight + barMargin,
             },
             style: {
@@ -210,9 +262,9 @@ export function initGantt({
 
           const lineH = new zrender.Line({
             shape: {
-              x1: chartStartX + unitWidth * posX + unitWidth / 2 - 5,
+              x1: chartStartX + effectiveUnitWidth * (posX - viewStartOffset) + effectiveUnitWidth / 2 - 5,
               y1: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2,
-              x2: chartStartX + unitWidth * posX + unitWidth / 2 + 5,
+              x2: chartStartX + effectiveUnitWidth * (posX - viewStartOffset) + effectiveUnitWidth / 2 + 5,
               y2: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2
             },
             style: {
@@ -222,9 +274,9 @@ export function initGantt({
           })
           const lineV = new zrender.Line({
             shape: {
-              x1: chartStartX + unitWidth * posX + unitWidth / 2,
+              x1: chartStartX + effectiveUnitWidth * (posX - viewStartOffset) + effectiveUnitWidth / 2,
               y1: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2 - 5,
-              x2: chartStartX + unitWidth * posX + unitWidth / 2,
+              x2: chartStartX + effectiveUnitWidth * (posX - viewStartOffset) + effectiveUnitWidth / 2,
               y2: chartStartY + (barHeight + barMargin) * posY + (barHeight + barMargin) / 2 + 5
             },
             style: {
@@ -248,13 +300,13 @@ export function initGantt({
     lastHandleMove = handleMove
     zr.on('mousemove', handleMove)
 
-    const timeScaleWidth = Math.ceil((canvasWidth) / unitWidth)
+    const timeScaleWidth = isFixedView ? daysInView : Math.ceil((canvasWidth) / effectiveUnitWidth)
     // Draw time scale
     const timeScale = new zrender.Rect({
       shape: {
-        x: chartStartX + lastScrollX,
+        x: chartStartX + viewScrollX,
         y: chartStartY - timeScaleHeight,
-        width: timeScaleWidth * unitWidth,
+        width: timeScaleWidth * effectiveUnitWidth,
         height: timeScaleHeight
       },
       style: {
@@ -265,12 +317,12 @@ export function initGantt({
 
     // Draw vertical grid lines
     const gridStartX = chartStartX
-    const gridEndX = timeScaleWidth * unitWidth
+    const gridEndX = timeScaleWidth * effectiveUnitWidth
     const gridLineCount = timeScaleWidth + 1
-    const deltaScrollX = Math.floor(lastScrollX / unitWidth)
+    const deltaScrollX = isFixedView ? viewStartOffset : Math.floor(viewScrollX / unitWidth)
     for (let i = 0 + deltaScrollX, count = 0; count < gridLineCount; i++, count++) {
-      const viewPortTaskLength = Math.min(tasks.length, (canvasHeight - chartStartY) / (barHeight + barMargin))
-      const gridX = gridStartX + i * unitWidth
+      const viewPortTaskLength = Math.min(displayTasks.length, (canvasHeight - chartStartY) / (barHeight + barMargin))
+      const gridX = gridStartX + (i - viewStartOffset) * effectiveUnitWidth
       const gridLine = new zrender.Line({
         shape: {
           x1: gridX,
@@ -291,10 +343,10 @@ export function initGantt({
         if (dateInfo.isHoliday) {
           try {
             const lines = hachureLines([
-              [chartStartX + i * unitWidth, chartStartY],
-              [chartStartX + i * unitWidth + unitWidth, chartStartY],
-              [chartStartX + i * unitWidth + unitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength],
-              [chartStartX + i * unitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength]
+              [chartStartX + (i - viewStartOffset) * effectiveUnitWidth, chartStartY],
+              [chartStartX + (i - viewStartOffset) * effectiveUnitWidth + effectiveUnitWidth, chartStartY],
+              [chartStartX + (i - viewStartOffset) * effectiveUnitWidth + effectiveUnitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength],
+              [chartStartX + (i - viewStartOffset) * effectiveUnitWidth, chartStartY + (barHeight + barMargin) * viewPortTaskLength]
             ], 10, 45)
             lines.forEach(line => {
               const [x1, y1] = line[0]
@@ -317,12 +369,14 @@ export function initGantt({
         const dateText = new zrender.Text({
           style: {
             text: dateInfo.dateString,
-            x: gridX,
-            y: chartStartY - timeScaleHeight,
+            x: isFixedView ? (gridX + effectiveUnitWidth / 2) : gridX,
+            y: isFixedView ? (chartStartY - timeScaleHeight / 2) : (chartStartY - timeScaleHeight),
+            textAlign: isFixedView ? 'center' : 'left',
+            textVerticalAlign: isFixedView ? 'middle' : 'top'
           },
           z: 1
         })
-        const [flagGroup] = createFlagGroup(zr, gridX, halfUnitWidth, chartStartY, timeScaleHeight)
+        const [flagGroup] = createFlagGroup(zr, gridX, halfEffectiveUnitWidth, chartStartY, timeScaleHeight)
         dateText.on('click', function () {
           const index = mileStones.findIndex(item => item.start === i)
           if (index === -1) {
@@ -364,7 +418,7 @@ export function initGantt({
         const { width, height } = dateText.getBoundingRect()
         dateText.attr({
           style: {
-            x: gridX - width / 2 + halfUnitWidth,
+            x: gridX - width / 2 + halfEffectiveUnitWidth,
             y: chartStartY - timeScaleHeight - height / 2 + timeScaleHeight / 2,
           }
         })
@@ -393,16 +447,20 @@ export function initGantt({
     }
 
     // Draw today line
-    drawTodayLine(zr, chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin, todayOffset)
+    if (!isFixedView || (todayOffset >= viewRange.start && todayOffset <= viewRange.end)) {
+      drawTodayLine(zr, chartStartX, chartStartY, timeScaleHeight, barHeight, barMargin, todayOffset, effectiveUnitWidth, viewStartOffset)
+    }
 
     // Draw milestones
     mileStones.forEach(function (item) {
+      if (isFixedView && (item.start < viewRange.start || item.start > viewRange.end)) return
+      const milestoneX = chartStartX + (item.start - viewStartOffset) * effectiveUnitWidth - 1
       const milestone = new zrender.Rect({
         shape: {
-          x: chartStartX + item.start * unitWidth - 1,
+          x: milestoneX,
           y: chartStartY - timeScaleHeight,
           width: 2,
-          height: tasks.length * (barHeight + barMargin) + timeScaleHeight
+          height: displayTasks.length * (barHeight + barMargin) + timeScaleHeight
         },
         style: {
           fill: "rgba(255, 0, 0, 1)"
@@ -411,7 +469,7 @@ export function initGantt({
       })
       const milestone_top = new zrender.Rect({
         shape: {
-          x: chartStartX + item.start * unitWidth - 1,
+          x: milestoneX,
           y: chartStartY - timeScaleHeight - milestoneTopHeight,
           width: 10,
           height: milestoneTopHeight
@@ -423,7 +481,7 @@ export function initGantt({
       })
       const milestone_top_text = new zrender.Text({
         style: {
-          x: chartStartX + item.start * unitWidth - 1 + 10,
+          x: milestoneX + 10,
           y: chartStartY - timeScaleHeight - milestoneTopHeight,
           text: item.name || '里程碑',
           fill: "white",
@@ -445,16 +503,17 @@ export function initGantt({
 
     let drawTaskBar = 0
     // Draw tasks, resource assignments, and task bars
-    tasks.forEach(function (task, index) {
+    displayTaskEntries.forEach(function ({ task, displayIndex, taskIndex }) {
       if (!task?.name) return
       // perf: 在视口外跳过
-      if (index > Math.floor((canvasHeight - chartStartY) / (barHeight + barMargin))) return
-      const showLeftArrow = task.start <= boundingLeft, showRightArrow = (task.start + task.duration) > boundingRight
+      if (displayIndex > Math.floor((canvasHeight - chartStartY) / (barHeight + barMargin))) return
+      const showLeftArrow = !isFixedView && task.start <= boundingLeft
+      const showRightArrow = !isFixedView && (task.start + task.duration) > boundingRight
 
       // Calculate position and dimensions
-      const x = chartStartX + task.start * unitWidth
-      const y = chartStartY + (barHeight + barMargin) * index
-      const width = task.duration * unitWidth
+      const x = chartStartX + (task.start - viewStartOffset) * effectiveUnitWidth
+      const y = chartStartY + (barHeight + barMargin) * displayIndex
+      const width = task.duration * effectiveUnitWidth
       const taskBarRect = {
         width,
         height: barHeight
@@ -465,7 +524,7 @@ export function initGantt({
         notifyScrollX()
         redrawChart(true)
       })
-      const rightArrow = createRightArrowRect(x, y, task, unitWidth, lastScrollX, canvasWidth, taskBarRect, showRightArrow, boundingRight, function () {
+      const rightArrow = createRightArrowRect(x, y, task, effectiveUnitWidth, viewScrollX, canvasWidth, taskBarRect, showRightArrow, boundingRight, function () {
         lastScrollX = (task.start + task.duration + 3) * unitWidth - canvasWidth
         notifyScrollX()
         redrawChart(true)
@@ -495,15 +554,15 @@ export function initGantt({
         cursor: 'move'
       })
       group.add(rect)
-      group.index = index
+      group.index = taskIndex
 
       const w = 6
       const box = rect.getBoundingRect()
-      const leftBar = getLeftHandleBar(w, box, taskBarRect, redrawChart)
+      const leftBar = getLeftHandleBar(w, box, taskBarRect, redrawChart, effectiveUnitWidth, halfEffectiveUnitWidth)
       leftBar.taskBar = rect
       group.add(leftBar)
 
-      const rightBar = getRightHandleBar(w, box, taskBarRect, redrawChart)
+      const rightBar = getRightHandleBar(w, box, taskBarRect, redrawChart, effectiveUnitWidth, halfEffectiveUnitWidth)
       rightBar.taskBar = rect
       group.add(rightBar)
 
@@ -579,7 +638,7 @@ export function initGantt({
         if (lastPosY !== posY) {
           lastPosY = posY
           zr.remove(lastBottomLine)
-          const bottomLine = getTaskBarMoveLine(chartStartX, chartStartY, lastScrollX, timeScaleWidth, posY)
+          const bottomLine = getTaskBarMoveLine(chartStartX, chartStartY, viewScrollX, timeScaleWidth, posY, effectiveUnitWidth)
           lastBottomLine = bottomLine
           bottomLine && zr.add(bottomLine)
           zr.refresh()
@@ -598,15 +657,16 @@ export function initGantt({
         const deltaX = e.event.zrX - dragStartX
         const dir = deltaX < 0 ? -1 : 1
         const delta = Math.abs(deltaX)
-        const mod = delta % unitWidth
-        const offsetX = dir * (Math.floor(delta / unitWidth) + Math.floor(mod / halfUnitWidth))
+        const mod = delta % effectiveUnitWidth
+        const offsetX = dir * (Math.floor(delta / effectiveUnitWidth) + Math.floor(mod / halfEffectiveUnitWidth))
         const y = e.event.zrY - chartStartY
         const posY = Math.floor(y / (barHeight + barMargin))
-        const offsetY = posY - index
+        const clampedPosY = Math.max(0, Math.min(posY, displayTasks.length - 1))
+        const offsetY = clampedPosY - displayIndex
         task.start += offsetX
-        if (lastBottomLine && posY !== index) {
-          tasks.splice(index, 1)
-          tasks.splice(posY > index ? posY - 1 : posY, 0, { ...task })
+        if (!isFilteredView && lastBottomLine && clampedPosY !== displayIndex) {
+          tasks.splice(taskIndex, 1)
+          tasks.splice(clampedPosY > displayIndex ? clampedPosY - 1 : clampedPosY, 0, { ...task })
         }
         if (offsetX || offsetY) {
           syncLocal()
@@ -645,8 +705,8 @@ export function initGantt({
 
     // 如果屏幕里没有任务条，调整到第一个
     if (isFirst && drawTaskBar === 0) {
-      if (tasks.length > 0) {
-        lastScrollX += (tasks[0].start - boundingLeft - 1) * unitWidth
+      if (visibleTasks.length > 0) {
+        lastScrollX += (visibleTasks[0].start - boundingLeft - 1) * unitWidth
         notifyScrollX()
         redrawChart(true)
       }
