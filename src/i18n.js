@@ -122,7 +122,7 @@ const messages = {
   },
   zh: {
     app: {
-      title: '甘特计划',
+      title: 'Gantt Planner',
       remoteSuffix: '（远程）'
     },
     toolbar: {
