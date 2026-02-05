@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   ColorPicker,
+  DatePicker,
   Form,
   Input,
+  InputNumber,
   Layout,
   Menu,
   Modal,
+  Switch,
   Select,
   Space,
   Tag,
@@ -20,21 +23,52 @@ import {
   FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SettingOutlined,
   UploadOutlined
 } from '@ant-design/icons';
+import { Row, Col } from 'antd';
+import dayjs from 'dayjs';
 import { initGantt } from './gantt.js';
-import { initLastScrollX, showFilter, filter as filterParam, baseDate, dayMs } from './const';
+import {
+  initLastScrollX,
+  showFilter,
+  filter as filterParam,
+  baseDate,
+  dayMs,
+  todayOffset,
+  unitWidth,
+  taskNamePaddingLeft,
+  timeScaleHeight,
+  milestoneTopHeight,
+  barHeight,
+  barMargin,
+  scrollSpeed,
+  includeHoliday,
+  useLocal,
+  useRemote,
+  mockTaskSize,
+  showArrow,
+  debug,
+  view
+} from './const';
 import { getRandomColor } from './utils';
 
 const { Header, Content } = Layout;
 
 const DEFAULT_COLOR = '#1677ff';
+const SETTINGS_STORAGE_KEY = 'gantt_setting';
 function formatDateFromOffset(offsetDays) {
   const date = new Date(baseDate.getTime() + offsetDays * dayMs);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getOffsetFromDate(date) {
+  if (!date) return 0;
+  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.floor((startOfDay.getTime() - baseDate.getTime()) / dayMs);
 }
 
 function parseIcsDate(value, isDateOnly) {
@@ -149,6 +183,23 @@ function updateFilterParam(color) {
   location.href = query ? `${location.pathname}?${query}` : location.pathname;
 }
 
+function loadStoredSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveStoredSettings(values) {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(values));
+  } catch (error) {
+    // ignore
+  }
+}
+
 export default function App() {
   const ganttRef = useRef(null);
   const containerRef = useRef(null);
@@ -164,6 +215,8 @@ export default function App() {
   const [createColor, setCreateColor] = useState(DEFAULT_COLOR);
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsForm] = Form.useForm();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -190,6 +243,7 @@ export default function App() {
         setCreatePos({ posX, posY });
         setCreateColor(DEFAULT_COLOR);
         createForm.setFieldsValue({
+          date: dayjs(baseDate.getTime() + posX * dayMs),
           name: '',
           resource: '',
           fillColor: DEFAULT_COLOR
@@ -204,6 +258,38 @@ export default function App() {
     setFilterColors(gantt.getFilterColors());
     return () => gantt.destroy?.();
   }, [createForm, editForm]);
+
+  useEffect(() => {
+    const stored = loadStoredSettings();
+    if (!stored) return;
+    const params = new URLSearchParams(location.search);
+    const applyIfMissing = (key, value, fallback) => {
+      if (params.has(key)) return;
+      if (value === undefined || value === null || value === '') return;
+      if (value === fallback) return;
+      params.set(key, String(value));
+    };
+    applyIfMissing('unitWidth', stored.unitWidth, unitWidth);
+    applyIfMissing('taskNamePaddingLeft', stored.taskNamePaddingLeft, taskNamePaddingLeft);
+    applyIfMissing('timeScaleHeight', stored.timeScaleHeight, timeScaleHeight);
+    applyIfMissing('milestoneTopHeight', stored.milestoneTopHeight, milestoneTopHeight);
+    applyIfMissing('barHeight', stored.barHeight, barHeight);
+    applyIfMissing('barMargin', stored.barMargin, barMargin);
+    applyIfMissing('scrollSpeed', stored.scrollSpeed, scrollSpeed);
+    applyIfMissing('mockTaskSize', stored.mockTaskSize, mockTaskSize || 0);
+    applyIfMissing('view', stored.view, view || '');
+    applyIfMissing('filter', stored.filter, filterParam || '');
+    applyIfMissing('includeHoliday', stored.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
+    applyIfMissing('useLocal', stored.useLocal ? 1 : 0, useLocal ? 1 : 0);
+    applyIfMissing('useRemote', stored.useRemote ? 1 : 0, useRemote ? 1 : 0);
+    applyIfMissing('showFilter', stored.showFilter ? 1 : 0, showFilter ? 1 : 0);
+    applyIfMissing('showArrow', stored.showArrow ? 1 : 0, showArrow ? 1 : 0);
+    applyIfMissing('debug', stored.debug ? 1 : 0, debug ? 1 : 0);
+    const query = params.toString();
+    if (query !== location.search.replace(/^\?/, '')) {
+      location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    }
+  }, []);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(prev => ({ ...prev, open: false }));
@@ -251,6 +337,18 @@ export default function App() {
       fillColor: createColor || values.fillColor
     });
     setCreateOpen(false);
+  };
+
+  const handleCreateClick = () => {
+    setCreatePos({ posX: todayOffset, posY: 0 });
+    setCreateColor(DEFAULT_COLOR);
+    createForm.setFieldsValue({
+      date: dayjs(baseDate.getTime() + todayOffset * dayMs),
+      name: '',
+      resource: '',
+      fillColor: DEFAULT_COLOR
+    });
+    setCreateOpen(true);
   };
 
   const handleImportClick = () => {
@@ -311,6 +409,77 @@ export default function App() {
     setContextMenu(prev => ({ ...prev, open: false }));
   };
 
+  const handleOpenSettings = () => {
+    const params = new URLSearchParams(location.search);
+    const stored = loadStoredSettings() || {};
+    const getNumber = (key, fallback) => {
+      const value = params.get(key);
+      if (value === null || value === '') {
+        return stored[key] ?? fallback;
+      }
+      return Number(value);
+    };
+    const getBool = (key, fallback) => {
+      if (!params.has(key)) return stored[key] ?? fallback;
+      const value = params.get(key);
+      return value !== '0';
+    };
+    settingsForm.setFieldsValue({
+      unitWidth: getNumber('unitWidth', unitWidth),
+      taskNamePaddingLeft: getNumber('taskNamePaddingLeft', taskNamePaddingLeft),
+      timeScaleHeight: getNumber('timeScaleHeight', timeScaleHeight),
+      milestoneTopHeight: getNumber('milestoneTopHeight', milestoneTopHeight),
+      barHeight: getNumber('barHeight', barHeight),
+      barMargin: getNumber('barMargin', barMargin),
+      scrollSpeed: getNumber('scrollSpeed', scrollSpeed),
+      mockTaskSize: getNumber('mockTaskSize', mockTaskSize || 0),
+      includeHoliday: getBool('includeHoliday', includeHoliday),
+      useLocal: getBool('useLocal', Boolean(useLocal)),
+      useRemote: getBool('useRemote', Boolean(useRemote)),
+      showFilter: getBool('showFilter', showFilter),
+      showArrow: getBool('showArrow', showArrow),
+      debug: getBool('debug', debug),
+      view: params.get('view') ?? stored.view ?? view ?? '',
+      filter: params.get('filter') ?? stored.filter ?? filterParam ?? ''
+    });
+    setSettingsOpen(true);
+  };
+
+  const handleApplySettings = async () => {
+    const values = await settingsForm.validateFields();
+    saveStoredSettings(values);
+    const params = new URLSearchParams(location.search);
+    const setOrDelete = (key, value, fallback) => {
+      if (value === undefined || value === null || value === '') {
+        params.delete(key);
+        return;
+      }
+      if (value === fallback) {
+        params.delete(key);
+        return;
+      }
+      params.set(key, String(value));
+    };
+    setOrDelete('unitWidth', values.unitWidth, unitWidth);
+    setOrDelete('taskNamePaddingLeft', values.taskNamePaddingLeft, taskNamePaddingLeft);
+    setOrDelete('timeScaleHeight', values.timeScaleHeight, timeScaleHeight);
+    setOrDelete('milestoneTopHeight', values.milestoneTopHeight, milestoneTopHeight);
+    setOrDelete('barHeight', values.barHeight, barHeight);
+    setOrDelete('barMargin', values.barMargin, barMargin);
+    setOrDelete('scrollSpeed', values.scrollSpeed, scrollSpeed);
+    setOrDelete('mockTaskSize', values.mockTaskSize, mockTaskSize || 0);
+    setOrDelete('view', values.view, view || '');
+    setOrDelete('filter', values.filter, filterParam || '');
+    setOrDelete('includeHoliday', values.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
+    setOrDelete('useLocal', values.useLocal ? 1 : 0, useLocal ? 1 : 0);
+    setOrDelete('useRemote', values.useRemote ? 1 : 0, useRemote ? 1 : 0);
+    setOrDelete('showFilter', values.showFilter ? 1 : 0, showFilter ? 1 : 0);
+    setOrDelete('showArrow', values.showArrow ? 1 : 0, showArrow ? 1 : 0);
+    setOrDelete('debug', values.debug ? 1 : 0, debug ? 1 : 0);
+    const query = params.toString();
+    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+  };
+
   return (
     <Layout className="app-layout">
       <Header className="app-header">
@@ -327,6 +496,12 @@ export default function App() {
             </Button>
             <Button icon={<ReloadOutlined />} onClick={() => ganttRef.current?.redraw()}>
               Refresh
+            </Button>
+            <Button icon={<SettingOutlined />} onClick={handleOpenSettings}>
+              Settings
+            </Button>
+            <Button icon={<PlusOutlined />} onClick={handleCreateClick}>
+              Create task
             </Button>
             <Button icon={<UploadOutlined />} onClick={handleImportClick}>
               Import .ics
@@ -446,6 +621,19 @@ export default function App() {
         onOk={handleCreateSubmit}
       >
         <Form layout="vertical" form={createForm}>
+          <Form.Item name="date" label="Date" rules={[{ required: true, message: 'Select a date' }]}
+          >
+            <DatePicker
+              style={{ width: '100%' }}
+              onChange={(value) => {
+                const selected = value?.toDate?.() ?? null;
+                setCreatePos(prev => ({
+                  ...prev,
+                  posX: getOffsetFromDate(selected)
+                }));
+              }}
+            />
+          </Form.Item>
           <Form.Item name="name" label="Task name" rules={[{ required: true, message: 'Enter a task name' }]}
           >
             <Input prefix={<PlusOutlined />} placeholder="Task name" />
@@ -475,6 +663,100 @@ export default function App() {
               />
             </Space.Compact>
           </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={settingsOpen}
+        title="Settings"
+        okText="Apply"
+        width={900}
+        onCancel={() => setSettingsOpen(false)}
+        onOk={handleApplySettings}
+      >
+        <Form layout="vertical" form={settingsForm}>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="unitWidth" label="Unit width">
+                <InputNumber min={40} max={400} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="taskNamePaddingLeft" label="Task name padding">
+                <InputNumber min={0} max={100} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="timeScaleHeight" label="Time scale height">
+                <InputNumber min={10} max={80} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="milestoneTopHeight" label="Milestone top height">
+                <InputNumber min={10} max={80} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="barHeight" label="Bar height">
+                <InputNumber min={10} max={80} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="barMargin" label="Bar margin">
+                <InputNumber min={0} max={30} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="scrollSpeed" label="Scroll speed">
+                <InputNumber min={1} max={100} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="mockTaskSize" label="Mock task size">
+                <InputNumber min={0} max={1000} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="view" label="View">
+                <Input placeholder="view" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="filter" label="Filter color">
+                <Input placeholder="#RRGGBB" />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="includeHoliday" label="Include holiday" valuePropName="checked">
+                <Switch size="small" />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="useLocal" label="Use local" valuePropName="checked">
+                <Switch size="small" />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="useRemote" label="Use remote" valuePropName="checked">
+                <Switch size="small" />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="showFilter" label="Show filter" valuePropName="checked">
+                <Switch size="small" />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="showArrow" label="Show arrows" valuePropName="checked">
+                <Switch size="small" />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
+              <Form.Item name="debug" label="Debug" valuePropName="checked">
+                <Switch size="small" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </Layout>
