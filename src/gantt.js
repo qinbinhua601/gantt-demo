@@ -5,7 +5,7 @@ import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilter
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
-import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile } from './const'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs } from './const'
 
 export function initGantt({
   container,
@@ -44,8 +44,19 @@ export function initGantt({
     renderer: 'canvas'
   })
 
+  const normalizeTask = (task) => {
+    if (!task || !task.name) return task
+    const start = Number(task.start)
+    const duration = Number(task.duration)
+    return {
+      ...task,
+      start: Number.isFinite(start) ? start : 0,
+      duration: Number.isFinite(duration) && duration > 0 ? duration : 1
+    }
+  }
+
   // Define tasks for the Gantt chart
-  const tasks = useLocal ? getLocal() : [
+  const tasks = (useLocal ? getLocal() : [
     { name: "Task 1", start: todayOffset + 0, duration: 3, resource: "John", fillColor: getRandomColor() },
     { name: "Task 2", start: todayOffset + 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
     { name: "Task 3 long long long", start: todayOffset + 7, duration: 1, resource: "Bob", fillColor: getRandomColor() },
@@ -53,7 +64,7 @@ export function initGantt({
     { name: "Task 5", start: todayOffset + 10, duration: 3, resource: "Uno", fillColor: getRandomColor() },
     {}
     // Add more tasks as needed
-  ]
+  ]).map(normalizeTask)
 
   const lastTask = tasks.pop()
   while (tasks.length > 1 && tasks.length < mockTaskSize) {
@@ -126,6 +137,12 @@ export function initGantt({
     clear && zr.clear()
     const canvasWidth = zr.getWidth()
     const canvasHeight = zr.getHeight()
+
+    const filledTasks = tasks.filter(task => task?.name)
+    const emptyTasks = tasks.filter(task => !task?.name)
+    filledTasks.sort((a, b) => (b.start ?? 0) - (a.start ?? 0))
+    tasks.length = 0
+    tasks.push(...filledTasks, ...emptyTasks)
 
     const boundingLeft = Math.floor(lastScrollX / unitWidth)
     const boundingRight = Math.floor((lastScrollX + canvasWidth) / unitWidth)
@@ -267,8 +284,7 @@ export function initGantt({
 
       // Draw the date
       if (count < gridLineCount - 1) {
-        const now = +new Date('2024-01-01')
-        const currentDate = now + i * 60 * 1000 * 60 * 24
+        const currentDate = baseDate.getTime() + i * dayMs
         const dateInfo = isHoliday(currentDate)
         // Draw the hachure fill 画斜线
         if (dateInfo.isHoliday) {
@@ -666,11 +682,8 @@ export function initGantt({
       redrawChart(true)
     },
     clearTasks() {
-      const oldTaskLength = tasks.length
       tasks.length = 0
-      for (let i = 0; i < oldTaskLength; i++) {
-        tasks.push({})
-      }
+      tasks.push({})
       syncLocal()
       notifyDataChange('clear')
       redrawChart(true)
@@ -711,6 +724,24 @@ export function initGantt({
       tasks.splice(posY, 0, task)
       syncLocal()
       notifyDataChange('create')
+      redrawChart(true)
+    },
+    addTasks(newTasks = []) {
+      if (!Array.isArray(newTasks) || newTasks.length === 0) return
+      const cleaned = newTasks
+        .filter(task => task && task.name)
+        .map(task => ({
+          name: task.name,
+          start: Number.isFinite(task.start) ? task.start : 0,
+          duration: Math.max(1, Number(task.duration) || 1),
+          resource: task.resource || defaultTaskOwner,
+          fillColor: task.fillColor || getRandomColor()
+        }))
+      if (!cleaned.length) return
+      const insertIndex = Math.max(0, tasks.length - 1)
+      tasks.splice(insertIndex, 0, ...cleaned)
+      syncLocal()
+      notifyDataChange('import')
       redrawChart(true)
     },
     redraw() {

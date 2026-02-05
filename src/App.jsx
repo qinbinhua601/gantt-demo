@@ -19,22 +19,123 @@ import {
   EditOutlined,
   FilterOutlined,
   PlusOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  UploadOutlined
 } from '@ant-design/icons';
 import { initGantt } from './gantt.js';
-import { initLastScrollX, showFilter, filter as filterParam } from './const';
+import { initLastScrollX, showFilter, filter as filterParam, baseDate, dayMs } from './const';
+import { getRandomColor } from './utils';
 
 const { Header, Content } = Layout;
 
 const DEFAULT_COLOR = '#1677ff';
-const BASE_DATE = new Date('2024-01-01T00:00:00');
-
 function formatDateFromOffset(offsetDays) {
-  const date = new Date(BASE_DATE.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+  const date = new Date(baseDate.getTime() + offsetDays * dayMs);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function parseIcsDate(value, isDateOnly) {
+  if (!value) return null;
+  const dateOnlyMatch = /^\d{8}$/.test(value);
+  if (isDateOnly || dateOnlyMatch) {
+    const year = Number(value.slice(0, 4));
+    const month = Number(value.slice(4, 6)) - 1;
+    const day = Number(value.slice(6, 8));
+    return new Date(year, month, day);
+  }
+  const utcMatch = /^\d{8}T\d{6}Z$/.test(value);
+  if (utcMatch) {
+    const year = Number(value.slice(0, 4));
+    const month = Number(value.slice(4, 6)) - 1;
+    const day = Number(value.slice(6, 8));
+    const hour = Number(value.slice(9, 11));
+    const minute = Number(value.slice(11, 13));
+    const second = Number(value.slice(13, 15));
+    return new Date(Date.UTC(year, month, day, hour, minute, second));
+  }
+  const localMatch = /^\d{8}T\d{6}$/.test(value);
+  if (localMatch) {
+    const year = Number(value.slice(0, 4));
+    const month = Number(value.slice(4, 6)) - 1;
+    const day = Number(value.slice(6, 8));
+    const hour = Number(value.slice(9, 11));
+    const minute = Number(value.slice(11, 13));
+    const second = Number(value.slice(13, 15));
+    return new Date(year, month, day, hour, minute, second);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function unfoldIcsLines(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const unfolded = [];
+  lines.forEach(line => {
+    if (!line) return;
+    if (line.startsWith(' ') || line.startsWith('\t')) {
+      const lastIndex = unfolded.length - 1;
+      if (lastIndex >= 0) {
+        unfolded[lastIndex] += line.slice(1);
+      }
+    } else {
+      unfolded.push(line);
+    }
+  });
+  return unfolded;
+}
+
+function parseIcs(text) {
+  const lines = unfoldIcsLines(text);
+  const events = [];
+  let current = null;
+
+  lines.forEach(line => {
+    if (line === 'BEGIN:VEVENT') {
+      current = {};
+      return;
+    }
+    if (line === 'END:VEVENT') {
+      if (current) events.push(current);
+      current = null;
+      return;
+    }
+    if (!current) return;
+    const [rawKey, ...rest] = line.split(':');
+    if (!rawKey || rest.length === 0) return;
+    const value = rest.join(':').trim();
+    const [key, ...params] = rawKey.split(';');
+    current[key] = value;
+    if (params.length) {
+      current[`${key}__params`] = params.join(';');
+    }
+  });
+
+  return events;
+}
+
+function mapEventsToTasks(events) {
+  return events.map(event => {
+    const summary = event.SUMMARY || 'Untitled event';
+    const startParams = event.DTSTART__params || '';
+    const endParams = event.DTEND__params || '';
+    const startDate = parseIcsDate(event.DTSTART, startParams.includes('VALUE=DATE'));
+    if (!startDate) return null;
+    const endDate = parseIcsDate(event.DTEND, endParams.includes('VALUE=DATE'));
+    const organizer = event.ORGANIZER || '';
+    const offset = Math.floor((startDate.getTime() - baseDate.getTime()) / dayMs);
+    const duration = endDate ? Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / dayMs)) : 1;
+    const resource = organizer.replace(/^mailto:/i, '').trim() || 'Imported';
+    return {
+      name: summary,
+      start: offset,
+      duration,
+      resource,
+      fillColor: getRandomColor()
+    };
+  }).filter(Boolean);
 }
 
 function updateFilterParam(color) {
@@ -51,6 +152,7 @@ function updateFilterParam(color) {
 export default function App() {
   const ganttRef = useRef(null);
   const containerRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [scrollX, setScrollX] = useState(initLastScrollX);
   const [filterColors, setFilterColors] = useState([]);
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
@@ -151,6 +253,39 @@ export default function App() {
     setCreateOpen(false);
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const events = parseIcs(text);
+      const tasks = mapEventsToTasks(events);
+      if (!tasks.length) {
+        Modal.info({
+          title: 'No events found',
+          content: 'The .ics file did not contain any importable events.'
+        });
+      } else {
+        ganttRef.current?.addTasks(tasks);
+        Modal.success({
+          title: 'Import complete',
+          content: `Imported ${tasks.length} event${tasks.length === 1 ? '' : 's'} from ${file.name}.`
+        });
+      }
+    } catch (error) {
+      Modal.error({
+        title: 'Import failed',
+        content: 'Unable to read this .ics file.'
+      });
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   const contextMenuItems = [
     {
       key: 'copy',
@@ -193,6 +328,9 @@ export default function App() {
             <Button icon={<ReloadOutlined />} onClick={() => ganttRef.current?.redraw()}>
               Refresh
             </Button>
+            <Button icon={<UploadOutlined />} onClick={handleImportClick}>
+              Import .ics
+            </Button>
             <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
               Clear tasks
             </Button>
@@ -201,6 +339,13 @@ export default function App() {
             </Button>
           </Space>
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".ics,text/calendar"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
         {showFilter && (
           <div style={{ marginTop: 12 }}>
             <Space size="middle">

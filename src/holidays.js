@@ -774,7 +774,7 @@ export function isHoliday(dateString) {
   const dayWithPadding = day.padStart(2, '0')
   const date_key = `${monthWithPadding}-${dayWithPadding}`;
   const isWeekend = ([0, 6].indexOf(d.getDay()) != -1);
-  if (holidays[date_key]) {
+  if (d.getFullYear() === 2024 && holidays[date_key]) {
     return {
       isHoliday: holidays[date_key].holiday,
       dateString: `${month}-${day}`

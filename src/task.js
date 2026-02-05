@@ -1,7 +1,7 @@
 import * as zrender from 'zrender'
 import { isHoliday } from './holidays'
 import { syncLocal } from './utils'
-import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize, showArrow } from './const'
+import { debug, unitWidth, halfUnitWidth, currentGroup, setCurrentGroup, barHeight, barMargin, arrowSize, showArrow, baseDate, dayMs } from './const'
 
 export function getLeftHandleBar(w, box, taskBarRect, redrawChart) {
   const { height: barHeight, width } = taskBarRect;
@@ -130,8 +130,8 @@ export function getRightHandleBar(w, box, taskBarRect, redrawChart) {
   return rightBar;
 }
 
-const taskStartDate = +new Date('2024-01-01')
-const taskDayCount = 60 * 60 * 24 * 1000
+const taskStartDate = +baseDate
+const taskDayCount = dayMs
 
 // 获取天数
 export function getRealDuration(task, includeHoliday) {

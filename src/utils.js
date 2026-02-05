@@ -66,7 +66,14 @@ const defaultValues = {
 
 export function getLocal(key = 'tasks') {
   try {
-    const res = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : defaultValues[key];
+    const stored = localStorage.getItem(key);
+    const res = stored ? JSON.parse(stored) : defaultValues[key];
+    if (!Array.isArray(res)) {
+      return defaultValues[key];
+    }
+    if (res.length === 0) {
+      return defaultValues[key];
+    }
     return res;
   } catch (error) {
     console.error('fail to getLocal')
