@@ -2,12 +2,12 @@ import * as zrender from 'zrender'
 import 'zrender/lib/canvas/canvas'
 import { hachureLines } from './hachure'
 import { isHoliday } from './holidays'
-import { syncLocal, getRandomColor, getLocal, initData, updateData, updateFilterItems } from './utils'
+import { syncLocal, getRandomColor, getLocal, initData, updateData } from './utils'
 import { createFlagGroup } from './flag'
 import { getLeftHandleBar, getRightHandleBar, getRealDuration, getTaskBarMoveLine, createLeftArrowRect, createRightArrowRect } from './task'
 import { drawTodayLine } from './today'
 import { getLocale, t } from './i18n'
-import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, filter, isMobile, baseDate, dayMs, view, viewDate } from './const'
+import { debug, defaultTaskOwner, unitWidth, halfUnitWidth, taskNamePaddingLeft, initChartStartX, initChartStartY, timeScaleHeight, milestoneTopHeight, barHeight, barMargin, scrollSpeed, includeHoliday, useLocal, useRemote, mockTaskSize, todayOffset, currentGroup, setCurrentGroup, initLastScrollX, categoryFilter, isMobile, baseDate, dayMs, view, viewDate } from './const'
 
 export function initGantt({
   container,
@@ -32,12 +32,11 @@ export function initGantt({
   }
 
   const notifyDataChange = (reason = 'update') => {
-    const colors = updateFilterItems(window.tasks || [])
     onDataChange?.({
       reason,
       tasks: window.tasks,
       mileStones: window.mileStones,
-      colors
+      categories: getCategories(window.tasks || [])
     })
   }
 
@@ -50,14 +49,26 @@ export function initGantt({
     if (!task || !task.name) return task
     const start = Number(task.start)
     const duration = Number(task.duration)
+    const category = task.category || t('category.uncategorized')
     return {
       ...task,
       start: Number.isFinite(start) ? start : 0,
-      duration: Number.isFinite(duration) && duration > 0 ? duration : 1
+      duration: Number.isFinite(duration) && duration > 0 ? duration : 1,
+      category,
     }
   }
 
   const getOffsetFromDate = (date) => Math.floor((date.getTime() - baseDate.getTime()) / dayMs)
+
+  const getCategories = (taskList = tasks) => {
+    const categorySet = new Set([t('category.uncategorized')])
+    taskList.forEach(task => {
+      if (task?.name) {
+        categorySet.add(task.category || t('category.uncategorized'))
+      }
+    })
+    return Array.from(categorySet)
+  }
 
   const getViewRange = () => {
     if (!view) return null
@@ -925,8 +936,14 @@ export function initGantt({
       notifyDataChange('init')
     })
   } else {
-    if (filter) {
-      updateData('tasks', tasks.filter(item => item.fillColor === filter))
+    if (categoryFilter) {
+      const defaultCategory = t('category.uncategorized')
+      updateData('tasks', tasks.filter(item => {
+        const matchesCategory = categoryFilter
+          ? (item.category || defaultCategory) === categoryFilter
+          : true
+        return matchesCategory
+      }))
     }
     redrawChart()
     notifyDataChange('init')
@@ -979,6 +996,7 @@ export function initGantt({
         start: posX,
         duration: 1,
         resource: values.resource || defaultTaskOwner,
+        category: values.category || t('category.uncategorized'),
         fillColor: values.fillColor || getRandomColor()
       }
       tasks.splice(posY, 0, task)
@@ -995,6 +1013,7 @@ export function initGantt({
           start: Number.isFinite(task.start) ? task.start : 0,
           duration: Math.max(1, Number(task.duration) || 1),
           resource: task.resource || defaultTaskOwner,
+          category: task.category || t('category.uncategorized'),
           fillColor: task.fillColor || getRandomColor()
         }))
       if (!cleaned.length) return
@@ -1007,8 +1026,8 @@ export function initGantt({
     redraw() {
       redrawChart(true)
     },
-    getFilterColors() {
-      return updateFilterItems(tasks)
+    getCategories() {
+      return getCategories(tasks)
     },
     destroy() {
       window.removeEventListener('resize', resizeHandler)

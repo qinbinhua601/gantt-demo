@@ -33,7 +33,8 @@ const messages = {
     filter: {
       label: 'Filter by color',
       placeholder: 'Filter by color',
-      allColors: 'All colors'
+      categoryPlaceholder: 'Filter by category',
+      allCategories: 'All categories'
     },
     modal: {
       clearTasksTitle: 'Clear all tasks?',
@@ -67,13 +68,17 @@ const messages = {
       scrollSpeed: 'Scroll speed',
       mockTaskSize: 'Mock task size',
       view: 'View',
-      filterColor: 'Filter color',
       includeHoliday: 'Include holiday',
       useLocal: 'Use local',
       useRemote: 'Use remote',
       showFilter: 'Show filter',
       showArrows: 'Show arrows',
       debug: 'Debug'
+    },
+    category: {
+      label: 'Category',
+      placeholder: 'Category',
+      uncategorized: 'Uncategorized'
     },
     data: {
       importIcsTooltip: 'Import Apple Calendar .ics',
@@ -151,7 +156,8 @@ const messages = {
     filter: {
       label: '按颜色筛选',
       placeholder: '按颜色筛选',
-      allColors: '全部颜色'
+      categoryPlaceholder: '按分类筛选',
+      allCategories: '全部分类'
     },
     modal: {
       clearTasksTitle: '清空所有任务？',
@@ -185,13 +191,17 @@ const messages = {
       scrollSpeed: '滚动速度',
       mockTaskSize: '模拟任务数',
       view: '视图',
-      filterColor: '筛选颜色',
       includeHoliday: '包含节假日',
       useLocal: '使用本地数据',
       useRemote: '使用远程数据',
       showFilter: '显示筛选器',
       showArrows: '显示箭头',
       debug: '调试'
+    },
+    category: {
+      label: '分类',
+      placeholder: '分类',
+      uncategorized: '未分类'
     },
     data: {
       importIcsTooltip: '导入 Apple 日历 .ics',

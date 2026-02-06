@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  AutoComplete,
   Button,
   ColorPicker,
   ConfigProvider,
@@ -44,7 +45,6 @@ import { getLocale, setLocale, t } from './i18n';
 import {
   initLastScrollX,
   showFilter,
-  filter as filterParam,
   baseDate,
   dayMs,
   todayOffset,
@@ -62,7 +62,8 @@ import {
   showArrow,
   debug,
   view,
-  viewDate
+  viewDate,
+  categoryFilter
 } from './const';
 import { getRandomColor } from './utils';
 
@@ -180,16 +181,17 @@ function mapEventsToTasks(events) {
       start: offset,
       duration,
       resource,
+      category: t('category.uncategorized'),
       fillColor: getRandomColor()
     };
   }).filter(Boolean);
 }
 
-function updateFilterParam(color) {
+function updateCategoryFilterParam(category) {
   const stored = loadStoredSettings() || {};
-  const next = { ...stored, filter: color || '' };
-  if (!color) {
-    delete next.filter;
+  const next = { ...stored, categoryFilter: category || '' };
+  if (!category) {
+    delete next.categoryFilter;
   }
   saveStoredSettings(next);
   location.reload();
@@ -220,7 +222,7 @@ export default function App() {
   const [locale, setLocaleState] = useState(getLocale());
   const antdLocale = locale === 'zh' ? zhCN : enUS;
   const [scrollX, setScrollX] = useState(initLastScrollX);
-  const [filterColors, setFilterColors] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
   const [editOpen, setEditOpen] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
@@ -249,6 +251,7 @@ export default function App() {
         editForm.setFieldsValue({
           name: task?.name || '',
           resource: task?.resource || '',
+          category: task?.category || t('category.uncategorized'),
           fillColor: task?.fillColor || DEFAULT_COLOR
         });
         setEditOpen(true);
@@ -266,16 +269,19 @@ export default function App() {
           date: dayjs(baseDate.getTime() + posX * dayMs),
           name: '',
           resource: '',
+          category: t('category.uncategorized'),
           fillColor: DEFAULT_COLOR
         });
         setCreateOpen(true);
       },
-      onDataChange: ({ colors }) => {
-        setFilterColors(colors || []);
+      onDataChange: ({ categories: nextCategories }) => {
+        if (Array.isArray(nextCategories)) {
+          setCategories(nextCategories);
+        }
       }
     });
     ganttRef.current = gantt;
-    setFilterColors(gantt.getFilterColors());
+    setCategories(gantt.getCategories?.() || []);
     return () => gantt.destroy?.();
   }, [createForm, editForm]);
 
@@ -323,6 +329,7 @@ export default function App() {
     const values = await editForm.validateFields();
     ganttRef.current?.updateTask(editIndex, {
       ...values,
+      category: values.category || t('category.uncategorized'),
       fillColor: editColor || values.fillColor
     });
     setEditOpen(false);
@@ -332,6 +339,7 @@ export default function App() {
     const values = await createForm.validateFields();
     ganttRef.current?.addTaskAt(createPos, {
       ...values,
+      category: values.category || t('category.uncategorized'),
       fillColor: createColor || values.fillColor
     });
     setCreateOpen(false);
@@ -344,6 +352,7 @@ export default function App() {
       date: dayjs(baseDate.getTime() + todayOffset * dayMs),
       name: '',
       resource: '',
+      category: t('category.uncategorized'),
       fillColor: DEFAULT_COLOR
     });
     setCreateOpen(true);
@@ -517,8 +526,7 @@ export default function App() {
       showFilter: getBool('showFilter', showFilter),
       showArrow: getBool('showArrow', showArrow),
       debug: getBool('debug', debug),
-      view: resolveViewValue(stored.view ?? view ?? ''),
-      filter: stored.filter ?? filterParam ?? ''
+      view: resolveViewValue(stored.view ?? view ?? '')
     });
     setSettingsOpen(true);
   };
@@ -690,30 +698,17 @@ export default function App() {
             <Space size="middle">
               <FilterOutlined />
               <Select
-                value={filterParam || ''}
-                placeholder={t('filter.placeholder')}
+                value={categoryFilter || ''}
+                placeholder={t('filter.categoryPlaceholder')}
                 style={{ width: 220 }}
-                options={filterColors.map(color => ({
-                  label: color ? (
-                    <Space>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: 12,
-                          height: 12,
-                          borderRadius: 4,
-                          background: color,
-                          border: '1px solid #d9d9d9'
-                        }}
-                      />
-                      {color}
-                    </Space>
-                  ) : (
-                    t('filter.allColors')
-                  ),
-                  value: color
-                }))}
-                onChange={updateFilterParam}
+                options={[
+                  { label: t('filter.allCategories'), value: '' },
+                  ...categories.map(category => ({
+                    label: category,
+                    value: category
+                  }))
+                ]}
+                onChange={updateCategoryFilterParam}
                 allowClear
               />
             </Space>
@@ -751,6 +746,15 @@ export default function App() {
           </Form.Item>
           <Form.Item name="resource" label={t('form.owner')}>
             <Input placeholder={t('form.ownerPlaceholder')} />
+          </Form.Item>
+          <Form.Item name="category" label={t('category.label')}>
+            <AutoComplete
+              options={categories.map(category => ({ value: category }))}
+              placeholder={t('category.placeholder')}
+              filterOption={(input, option) =>
+                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
           <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
           >
@@ -803,6 +807,15 @@ export default function App() {
           </Form.Item>
           <Form.Item name="resource" label={t('form.owner')}>
             <Input placeholder={t('form.ownerPlaceholder')} />
+          </Form.Item>
+          <Form.Item name="category" label={t('category.label')}>
+            <AutoComplete
+              options={categories.map(category => ({ value: category }))}
+              placeholder={t('category.placeholder')}
+              filterOption={(input, option) =>
+                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
           <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
           >
@@ -887,11 +900,6 @@ export default function App() {
                     { label: t('toolbar.thisMonth'), value: 'month' }
                   ]}
                 />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="filter" label={t('form.filterColor')}>
-                <Input placeholder="#RRGGBB" />
               </Form.Item>
             </Col>
             <Col span={4}>

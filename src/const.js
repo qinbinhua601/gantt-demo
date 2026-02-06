@@ -58,8 +58,8 @@ export const todayOffset = Math.floor((+new Date() - +baseDate) / dayMs)
 
 export const initLastScrollX = (todayOffset - 1) * unitWidth
 
-// 过滤色
-export const filter = getSetting('filter', null);
+// 过滤分类
+export const categoryFilter = getSetting('categoryFilter', null);
 
 // 显示过滤控制器
 export const showFilter = getSetting('showFilter', false);
