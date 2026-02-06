@@ -36,7 +36,8 @@ export function initGantt({
       reason,
       tasks: window.tasks,
       mileStones: window.mileStones,
-      categories: getCategories(window.tasks || [])
+      categories: getCategories(window.tasks || []),
+      categoryColors: getCategoryColors()
     })
   }
 
@@ -45,29 +46,97 @@ export function initGantt({
     renderer: 'canvas'
   })
 
+  const CATEGORY_COLORS_KEY = 'categoryColors'
+  const loadCategoryColors = () => {
+    try {
+      const raw = localStorage.getItem(CATEGORY_COLORS_KEY)
+      return raw ? JSON.parse(raw) : {}
+    } catch (error) {
+      return {}
+    }
+  }
+  const saveCategoryColors = () => {
+    try {
+      localStorage.setItem(CATEGORY_COLORS_KEY, JSON.stringify(categoryColors))
+    } catch (error) {
+      // ignore
+    }
+  }
+
+  let categoryColors = loadCategoryColors()
+
+  const getUniqueRandomColor = () => {
+    const used = new Set(Object.values(categoryColors))
+    let color = getRandomColor()
+    let tries = 0
+    while (used.has(color) && tries < 50) {
+      color = getRandomColor()
+      tries += 1
+    }
+    return color
+  }
+
+  const ensureCategoryColor = (category, preferredColor) => {
+    const resolved = category || t('category.uncategorized')
+    const existing = categoryColors[resolved]
+    if (preferredColor && !existing) {
+      categoryColors[resolved] = preferredColor
+      saveCategoryColors()
+      return preferredColor
+    }
+    if (!existing) {
+      const generated = getUniqueRandomColor()
+      categoryColors[resolved] = generated
+      saveCategoryColors()
+      return generated
+    }
+    return existing
+  }
+
+  const applyCategoryColor = (task, preferredColor) => {
+    if (!task || !task.name) return task
+    const category = task.category || t('category.uncategorized')
+    const color = ensureCategoryColor(category, preferredColor || task.fillColor)
+    return {
+      ...task,
+      category,
+      fillColor: color
+    }
+  }
+
   const normalizeTask = (task) => {
     if (!task || !task.name) return task
     const start = Number(task.start)
     const duration = Number(task.duration)
-    const category = task.category || t('category.uncategorized')
-    return {
+    const normalized = {
       ...task,
       start: Number.isFinite(start) ? start : 0,
-      duration: Number.isFinite(duration) && duration > 0 ? duration : 1,
-      category,
+      duration: Number.isFinite(duration) && duration > 0 ? duration : 1
     }
+    return applyCategoryColor(normalized)
   }
 
   const getOffsetFromDate = (date) => Math.floor((date.getTime() - baseDate.getTime()) / dayMs)
 
   const getCategories = (taskList = tasks) => {
-    const categorySet = new Set([t('category.uncategorized')])
+    const categorySet = new Set([
+      t('category.uncategorized'),
+      ...Object.keys(categoryColors)
+    ])
     taskList.forEach(task => {
       if (task?.name) {
         categorySet.add(task.category || t('category.uncategorized'))
       }
     })
     return Array.from(categorySet)
+  }
+
+  const getCategoryColors = () => {
+    const categories = getCategories(tasks)
+    categories.forEach(category => {
+      ensureCategoryColor(category)
+    })
+    return { ...categoryColors }
   }
 
   const getViewRange = () => {
@@ -96,11 +165,11 @@ export function initGantt({
 
   // Define tasks for the Gantt chart
   const tasks = (useLocal ? getLocal() : [
-    { name: "Task 1", start: todayOffset + 0, duration: 3, resource: "John", fillColor: getRandomColor() },
-    { name: "Task 2", start: todayOffset + 2, duration: 4, resource: "Jane", fillColor: getRandomColor() },
-    { name: "Task 3 long long long", start: todayOffset + 7, duration: 1, resource: "Bob", fillColor: getRandomColor() },
-    { name: "Task 4", start: todayOffset + 8, duration: 2, resource: "Bose", fillColor: getRandomColor() },
-    { name: "Task 5", start: todayOffset + 10, duration: 3, resource: "Uno", fillColor: getRandomColor() },
+    { name: "Task 1", start: todayOffset + 0, duration: 3, resource: "John", category: "Design", fillColor: getRandomColor() },
+    { name: "Task 2", start: todayOffset + 2, duration: 4, resource: "Jane", category: "Design", fillColor: getRandomColor() },
+    { name: "Task 3 long long long", start: todayOffset + 7, duration: 1, resource: "Bob", category: "Build", fillColor: getRandomColor() },
+    { name: "Task 4", start: todayOffset + 8, duration: 2, resource: "Bose", category: "Build", fillColor: getRandomColor() },
+    { name: "Task 5", start: todayOffset + 10, duration: 3, resource: "Uno", category: "QA", fillColor: getRandomColor() },
     {}
     // Add more tasks as needed
   ]).map(normalizeTask)
@@ -302,13 +371,13 @@ export function initGantt({
             const taskName = prompt(t('gantt.taskNamePrompt'))
             if (!taskName) return
             const resourceName = prompt(t('gantt.assignPrompt')) || defaultTaskOwner
-            tasks.splice(insertIndex, 0, {
+            tasks.splice(insertIndex, 0, applyCategoryColor({
               name: taskName,
               start: dayOffset,
               duration: 1,
               resource: resourceName,
-              fillColor: getRandomColor()
-            })
+              category: t('category.uncategorized')
+            }))
             syncLocal()
             notifyDataChange('create')
             redrawChart(true)
@@ -437,7 +506,13 @@ export function initGantt({
             const taskName = prompt(t('gantt.taskNamePrompt'))
             if (!taskName) return
             const resourceName = prompt(t('gantt.assignPrompt')) || defaultTaskOwner
-            tasks.splice(insertIndex, 0, { name: taskName, start: posX, duration: 1, resource: resourceName, fillColor: getRandomColor() })
+            tasks.splice(insertIndex, 0, applyCategoryColor({
+              name: taskName,
+              start: posX,
+              duration: 1,
+              resource: resourceName,
+              category: t('category.uncategorized')
+            }))
             syncLocal()
             notifyDataChange('create')
             redrawChart(true)
@@ -985,20 +1060,20 @@ export function initGantt({
       redrawChart(true)
     },
     updateTask(index, values) {
-      tasks.splice(index, 1, { ...tasks[index], ...values })
+      const updated = applyCategoryColor({ ...tasks[index], ...values })
+      tasks.splice(index, 1, updated)
       syncLocal()
       notifyDataChange('edit')
       redrawChart(true)
     },
     addTaskAt({ posX, posY }, values) {
-      const task = {
+      const task = applyCategoryColor({
         name: values.name,
         start: posX,
         duration: 1,
         resource: values.resource || defaultTaskOwner,
-        category: values.category || t('category.uncategorized'),
-        fillColor: values.fillColor || getRandomColor()
-      }
+        category: values.category || t('category.uncategorized')
+      }, values.fillColor)
       tasks.splice(posY, 0, task)
       syncLocal()
       notifyDataChange('create')
@@ -1008,14 +1083,13 @@ export function initGantt({
       if (!Array.isArray(newTasks) || newTasks.length === 0) return
       const cleaned = newTasks
         .filter(task => task && task.name)
-        .map(task => ({
+        .map(task => applyCategoryColor({
           name: task.name,
           start: Number.isFinite(task.start) ? task.start : 0,
           duration: Math.max(1, Number(task.duration) || 1),
           resource: task.resource || defaultTaskOwner,
-          category: task.category || t('category.uncategorized'),
-          fillColor: task.fillColor || getRandomColor()
-        }))
+          category: task.category || t('category.uncategorized')
+        }, task.fillColor))
       if (!cleaned.length) return
       const insertIndex = Math.max(0, tasks.length - 1)
       tasks.splice(insertIndex, 0, ...cleaned)
@@ -1028,6 +1102,64 @@ export function initGantt({
     },
     getCategories() {
       return getCategories(tasks)
+    },
+    getCategoryColors() {
+      return getCategoryColors()
+    },
+    setCategoryColor(category, color) {
+      if (!category) return
+      const nextColor = color || getUniqueRandomColor()
+      categoryColors = { ...categoryColors, [category]: nextColor }
+      saveCategoryColors()
+      tasks.forEach((task, index) => {
+        if (task?.name && (task.category || t('category.uncategorized')) === category) {
+          tasks[index] = { ...task, fillColor: nextColor, category }
+        }
+      })
+      syncLocal()
+      notifyDataChange('category-color')
+      redrawChart(true)
+    },
+    renameCategory(oldName, newName) {
+      if (!oldName || !newName || oldName === newName) return
+      const defaultCategory = t('category.uncategorized')
+      if (oldName === defaultCategory || newName === defaultCategory) return
+      const existingColor = categoryColors[oldName]
+      if (existingColor && !categoryColors[newName]) {
+        categoryColors = { ...categoryColors, [newName]: existingColor }
+      }
+      if (categoryColors[oldName]) {
+        const { [oldName]: _, ...rest } = categoryColors
+        categoryColors = rest
+      }
+      saveCategoryColors()
+      tasks.forEach((task, index) => {
+        if (task?.name && (task.category || defaultCategory) === oldName) {
+          tasks[index] = applyCategoryColor({ ...task, category: newName })
+        }
+      })
+      syncLocal()
+      notifyDataChange('category-rename')
+      redrawChart(true)
+    },
+    deleteCategory(name, fallback = t('category.uncategorized')) {
+      if (!name) return
+      const defaultCategory = t('category.uncategorized')
+      if (name === defaultCategory) return
+      if (categoryColors[name]) {
+        const { [name]: _, ...rest } = categoryColors
+        categoryColors = rest
+        saveCategoryColors()
+      }
+      const target = fallback || defaultCategory
+      tasks.forEach((task, index) => {
+        if (task?.name && (task.category || defaultCategory) === name) {
+          tasks[index] = applyCategoryColor({ ...task, category: target })
+        }
+      })
+      syncLocal()
+      notifyDataChange('category-delete')
+      redrawChart(true)
     },
     destroy() {
       window.removeEventListener('resize', resizeHandler)

@@ -23,6 +23,8 @@ const messages = {
       createTaskTooltip: 'Create a new task',
       openSettings: 'Open settings',
       settings: 'Settings',
+      manageCategories: 'Manage categories',
+      categories: 'Categories',
       clearTasks: 'Clear tasks',
       clearTasksTooltip: 'Clear all tasks',
       clearMilestones: 'Clear milestones',
@@ -31,8 +33,8 @@ const messages = {
       data: 'Data'
     },
     filter: {
-      label: 'Filter by color',
-      placeholder: 'Filter by color',
+      label: 'Filter by category',
+      placeholder: 'Filter by category',
       categoryPlaceholder: 'Filter by category',
       allCategories: 'All categories'
     },
@@ -42,12 +44,19 @@ const messages = {
       clearMilestonesTitle: 'Clear all milestones?',
       clearMilestonesContent: 'This action cannot be undone.',
       okClear: 'Clear',
+      renameCategoryTitle: 'Rename category',
+      deleteCategoryTitle: 'Delete category?',
+      deleteCategoryContent: 'Tasks in "{category}" will move to Uncategorized.',
+      delete: 'Delete',
+      rename: 'Rename',
       editTitle: 'Edit task',
       save: 'Save',
       addTitle: 'Add task on {date}',
       create: 'Create',
       settingsTitle: 'Settings',
-      apply: 'Apply'
+      apply: 'Apply',
+      close: 'Close',
+      categoryManagerTitle: 'Category manager'
     },
     form: {
       taskName: 'Task name',
@@ -78,7 +87,12 @@ const messages = {
     category: {
       label: 'Category',
       placeholder: 'Category',
-      uncategorized: 'Uncategorized'
+      uncategorized: 'Uncategorized',
+      newPlaceholder: 'New category',
+      add: 'Add category',
+      rename: 'Rename',
+      delete: 'Delete',
+      colorLabel: 'Category color'
     },
     data: {
       importIcsTooltip: 'Import Apple Calendar .ics',
@@ -146,6 +160,8 @@ const messages = {
       createTaskTooltip: '创建新任务',
       openSettings: '打开设置',
       settings: '设置',
+      manageCategories: '管理分类',
+      categories: '分类',
       clearTasks: '清空任务',
       clearTasksTooltip: '清空所有任务',
       clearMilestones: '清空里程碑',
@@ -154,8 +170,8 @@ const messages = {
       data: '数据'
     },
     filter: {
-      label: '按颜色筛选',
-      placeholder: '按颜色筛选',
+      label: '按分类筛选',
+      placeholder: '按分类筛选',
       categoryPlaceholder: '按分类筛选',
       allCategories: '全部分类'
     },
@@ -165,12 +181,19 @@ const messages = {
       clearMilestonesTitle: '清空所有里程碑？',
       clearMilestonesContent: '此操作无法撤销。',
       okClear: '清空',
+      renameCategoryTitle: '重命名分类',
+      deleteCategoryTitle: '删除分类？',
+      deleteCategoryContent: '“{category}”中的任务会移动到未分类。',
+      delete: '删除',
+      rename: '重命名',
       editTitle: '编辑任务',
       save: '保存',
       addTitle: '在 {date} 添加任务',
       create: '创建',
       settingsTitle: '设置',
-      apply: '应用'
+      apply: '应用',
+      close: '关闭',
+      categoryManagerTitle: '分类管理'
     },
     form: {
       taskName: '任务名称',
@@ -201,7 +224,12 @@ const messages = {
     category: {
       label: '分类',
       placeholder: '分类',
-      uncategorized: '未分类'
+      uncategorized: '未分类',
+      newPlaceholder: '新建分类',
+      add: '添加分类',
+      rename: '重命名',
+      delete: '删除',
+      colorLabel: '分类颜色'
     },
     data: {
       importIcsTooltip: '导入 Apple 日历 .ics',

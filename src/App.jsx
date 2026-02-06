@@ -65,7 +65,6 @@ import {
   viewDate,
   categoryFilter
 } from './const';
-import { getRandomColor } from './utils';
 
 const { Header, Content } = Layout;
 
@@ -181,8 +180,7 @@ function mapEventsToTasks(events) {
       start: offset,
       duration,
       resource,
-      category: t('category.uncategorized'),
-      fillColor: getRandomColor()
+      category: t('category.uncategorized')
     };
   }).filter(Boolean);
 }
@@ -223,18 +221,66 @@ export default function App() {
   const antdLocale = locale === 'zh' ? zhCN : enUS;
   const [scrollX, setScrollX] = useState(initLastScrollX);
   const [categories, setCategories] = useState([]);
+  const [categoryColors, setCategoryColors] = useState({});
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
   const [editOpen, setEditOpen] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
-  const [editColor, setEditColor] = useState(DEFAULT_COLOR);
+  const [editCategoryColor, setEditCategoryColor] = useState(DEFAULT_COLOR);
   const [createOpen, setCreateOpen] = useState(false);
   const [createPos, setCreatePos] = useState({ posX: 0, posY: 0 });
-  const [createColor, setCreateColor] = useState(DEFAULT_COLOR);
+  const [createCategoryColor, setCreateCategoryColor] = useState(DEFAULT_COLOR);
+  const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState('');
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState('');
+  const [renameValue, setRenameValue] = useState('');
   const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsForm] = Form.useForm();
+
+  const resolveCategoryColor = (category) => {
+    const key = category || t('category.uncategorized');
+    return categoryColors[key] || DEFAULT_COLOR;
+  };
+
+  const displayCategories = Array.from(new Set([
+    ...categories,
+    ...Object.keys(categoryColors)
+  ]));
+
+  const handleCategoryColorChange = (category, color) => {
+    const nextColor = color || DEFAULT_COLOR;
+    setCategoryColors(prev => ({ ...prev, [category]: nextColor }));
+    ganttRef.current?.setCategoryColor?.(category, nextColor);
+  };
+
+  const handleAddCategory = () => {
+    const name = (newCategoryName || '').trim();
+    if (!name) return;
+    handleCategoryColorChange(name, newCategoryColor || undefined);
+    setCategories(prev => (prev.includes(name) ? prev : [...prev, name]));
+    setNewCategoryName('');
+  };
+
+  const handleOpenRename = (category) => {
+    setRenameTarget(category);
+    setRenameValue(category);
+    setRenameOpen(true);
+  };
+
+  const handleRenameSubmit = () => {
+    const nextName = (renameValue || '').trim();
+    if (!nextName || nextName === renameTarget) {
+      setRenameOpen(false);
+      return;
+    }
+    ganttRef.current?.renameCategory?.(renameTarget, nextName);
+    setCategories(prev => (prev.includes(nextName) ? prev : [...prev, nextName]));
+    setRenameOpen(false);
+  };
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -247,12 +293,12 @@ export default function App() {
       onScrollXChange: setScrollX,
       onEditTask: ({ index, task }) => {
         setEditIndex(index);
-        setEditColor(task?.fillColor || DEFAULT_COLOR);
+        const category = task?.category || t('category.uncategorized');
+        setEditCategoryColor(resolveCategoryColor(category));
         editForm.setFieldsValue({
           name: task?.name || '',
           resource: task?.resource || '',
-          category: task?.category || t('category.uncategorized'),
-          fillColor: task?.fillColor || DEFAULT_COLOR
+          category
         });
         setEditOpen(true);
       },
@@ -264,24 +310,27 @@ export default function App() {
       },
       onCreateTask: ({ posX, posY }) => {
         setCreatePos({ posX, posY });
-        setCreateColor(DEFAULT_COLOR);
+        setCreateCategoryColor(resolveCategoryColor(t('category.uncategorized')));
         createForm.setFieldsValue({
           date: dayjs(baseDate.getTime() + posX * dayMs),
           name: '',
           resource: '',
-          category: t('category.uncategorized'),
-          fillColor: DEFAULT_COLOR
+          category: t('category.uncategorized')
         });
         setCreateOpen(true);
       },
-      onDataChange: ({ categories: nextCategories }) => {
+      onDataChange: ({ categories: nextCategories, categoryColors: nextCategoryColors }) => {
         if (Array.isArray(nextCategories)) {
           setCategories(nextCategories);
+        }
+        if (nextCategoryColors) {
+          setCategoryColors(nextCategoryColors);
         }
       }
     });
     ganttRef.current = gantt;
     setCategories(gantt.getCategories?.() || []);
+    setCategoryColors(gantt.getCategoryColors?.() || {});
     return () => gantt.destroy?.();
   }, [createForm, editForm]);
 
@@ -327,35 +376,46 @@ export default function App() {
 
   const handleEditSubmit = async () => {
     const values = await editForm.validateFields();
+    const category = values.category || t('category.uncategorized');
+    if (editCategoryColor) {
+      ganttRef.current?.setCategoryColor?.(category, editCategoryColor);
+    }
     ganttRef.current?.updateTask(editIndex, {
       ...values,
-      category: values.category || t('category.uncategorized'),
-      fillColor: editColor || values.fillColor
+      category
     });
     setEditOpen(false);
   };
 
   const handleCreateSubmit = async () => {
     const values = await createForm.validateFields();
+    const category = values.category || t('category.uncategorized');
+    if (createCategoryColor) {
+      ganttRef.current?.setCategoryColor?.(category, createCategoryColor);
+    }
     ganttRef.current?.addTaskAt(createPos, {
       ...values,
-      category: values.category || t('category.uncategorized'),
-      fillColor: createColor || values.fillColor
+      category
     });
     setCreateOpen(false);
   };
 
   const handleCreateClick = () => {
     setCreatePos({ posX: todayOffset, posY: 0 });
-    setCreateColor(DEFAULT_COLOR);
+    setCreateCategoryColor(resolveCategoryColor(t('category.uncategorized')));
     createForm.setFieldsValue({
       date: dayjs(baseDate.getTime() + todayOffset * dayMs),
       name: '',
       resource: '',
-      category: t('category.uncategorized'),
-      fillColor: DEFAULT_COLOR
+      category: t('category.uncategorized')
     });
     setCreateOpen(true);
+  };
+
+  const handleOpenCategoryPanel = () => {
+    setNewCategoryName('');
+    setNewCategoryColor('');
+    setCategoryPanelOpen(true);
   };
 
   const handleImportClick = () => {
@@ -366,6 +426,7 @@ export default function App() {
     const payload = {
       tasks: JSON.parse(localStorage.getItem('tasks') || 'null') ?? window.tasks ?? [],
       mileStones: JSON.parse(localStorage.getItem('mileStones') || 'null') ?? window.mileStones ?? [],
+      categoryColors: JSON.parse(localStorage.getItem('categoryColors') || 'null') ?? null,
       gantt_setting: JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null') ?? null
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -394,6 +455,9 @@ export default function App() {
       }
       if (data.mileStones) {
         localStorage.setItem('mileStones', JSON.stringify(data.mileStones));
+      }
+      if (data.categoryColors) {
+        localStorage.setItem('categoryColors', JSON.stringify(data.categoryColors));
       }
       if (data.gantt_setting) {
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(data.gantt_setting));
@@ -578,6 +642,24 @@ export default function App() {
 
   const viewValue = view || 'all';
   const isFixedView = viewValue === 'week' || viewValue === 'month';
+  const categoryOptions = displayCategories.map(category => ({
+    value: category,
+    label: (
+      <Space>
+        <span
+          style={{
+            display: 'inline-block',
+            width: 12,
+            height: 12,
+            borderRadius: 4,
+            background: resolveCategoryColor(category),
+            border: '1px solid #d9d9d9'
+          }}
+        />
+        {category}
+      </Space>
+    )
+  }));
 
   return (
     <ConfigProvider locale={antdLocale}>
@@ -644,6 +726,11 @@ export default function App() {
                 {t('toolbar.settings')}
               </Button>
             </Tooltip>
+            <Tooltip title={t('toolbar.manageCategories')}>
+              <Button icon={<EditOutlined />} onClick={handleOpenCategoryPanel}>
+                {t('toolbar.categories')}
+              </Button>
+            </Tooltip>
             <Tooltip title={t('toolbar.clearTasksTooltip')}>
               <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
                 {t('toolbar.clearTasks')}
@@ -703,10 +790,7 @@ export default function App() {
                 style={{ width: 220 }}
                 options={[
                   { label: t('filter.allCategories'), value: '' },
-                  ...categories.map(category => ({
-                    label: category,
-                    value: category
-                  }))
+                  ...categoryOptions
                 ]}
                 onChange={updateCategoryFilterParam}
                 allowClear
@@ -749,30 +833,29 @@ export default function App() {
           </Form.Item>
           <Form.Item name="category" label={t('category.label')}>
             <AutoComplete
-              options={categories.map(category => ({ value: category }))}
+              options={categoryOptions}
               placeholder={t('category.placeholder')}
               filterOption={(input, option) =>
                 (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
               }
+              onSelect={(value) => setEditCategoryColor(resolveCategoryColor(value))}
+              onChange={(value) => setEditCategoryColor(resolveCategoryColor(value))}
             />
           </Form.Item>
-          <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
-          >
+          <Form.Item label={t('category.colorLabel')}>
             <Space.Compact style={{ width: '100%' }}>
               <Input
-                value={editColor}
+                value={editCategoryColor}
                 onChange={e => {
                   const value = e.target.value;
-                  setEditColor(value);
-                  editForm.setFieldsValue({ fillColor: value });
+                  setEditCategoryColor(value);
                 }}
                 placeholder="#1677ff"
               />
               <ColorPicker
-                value={editColor}
+                value={editCategoryColor}
                 onChange={(_, hex) => {
-                  setEditColor(hex);
-                  editForm.setFieldsValue({ fillColor: hex });
+                  setEditCategoryColor(hex);
                 }}
               />
             </Space.Compact>
@@ -810,35 +893,140 @@ export default function App() {
           </Form.Item>
           <Form.Item name="category" label={t('category.label')}>
             <AutoComplete
-              options={categories.map(category => ({ value: category }))}
+              options={categoryOptions}
               placeholder={t('category.placeholder')}
               filterOption={(input, option) =>
                 (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
               }
+              onSelect={(value) => setCreateCategoryColor(resolveCategoryColor(value))}
+              onChange={(value) => setCreateCategoryColor(resolveCategoryColor(value))}
             />
           </Form.Item>
-          <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
-          >
+          <Form.Item label={t('category.colorLabel')}>
             <Space.Compact style={{ width: '100%' }}>
               <Input
-                value={createColor}
+                value={createCategoryColor}
                 onChange={e => {
                   const value = e.target.value;
-                  setCreateColor(value);
-                  createForm.setFieldsValue({ fillColor: value });
+                  setCreateCategoryColor(value);
                 }}
                 placeholder="#1677ff"
               />
               <ColorPicker
-                value={createColor}
+                value={createCategoryColor}
                 onChange={(_, hex) => {
-                  setCreateColor(hex);
-                  createForm.setFieldsValue({ fillColor: hex });
+                  setCreateCategoryColor(hex);
                 }}
               />
             </Space.Compact>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={categoryPanelOpen}
+        title={t('modal.categoryManagerTitle')}
+        okText={t('modal.close')}
+        onCancel={() => setCategoryPanelOpen(false)}
+        onOk={() => setCategoryPanelOpen(false)}
+        width={640}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          {displayCategories.map(category => (
+            <div
+              key={category}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16
+              }}
+            >
+              <Space>
+                <Typography.Text>{category}</Typography.Text>
+                {category !== t('category.uncategorized') && (
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => handleOpenRename(category)}
+                  >
+                    {t('category.rename')}
+                  </Button>
+                )}
+              </Space>
+              <Space.Compact>
+                <Input
+                  value={resolveCategoryColor(category)}
+                  onChange={e => handleCategoryColorChange(category, e.target.value)}
+                  placeholder="#1677ff"
+                  style={{ width: 140 }}
+                />
+                <ColorPicker
+                  value={resolveCategoryColor(category)}
+                  onChange={(_, hex) => handleCategoryColorChange(category, hex)}
+                />
+                {category !== t('category.uncategorized') && (
+                  <Button
+                    danger
+                    onClick={() => {
+                      Modal.confirm({
+                        title: t('modal.deleteCategoryTitle'),
+                        content: t('modal.deleteCategoryContent', { category }),
+                        okText: t('modal.delete'),
+                        okButtonProps: { danger: true },
+                        onOk: () => {
+                          ganttRef.current?.deleteCategory?.(category, t('category.uncategorized'));
+                          setCategories(prev => prev.filter(item => item !== category));
+                        }
+                      });
+                    }}
+                  >
+                    {t('category.delete')}
+                  </Button>
+                )}
+              </Space.Compact>
+            </div>
+          ))}
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+            <Space wrap>
+              <Input
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                placeholder={t('category.newPlaceholder')}
+                style={{ width: 180 }}
+              />
+              <Space.Compact>
+                <Input
+                  value={newCategoryColor}
+                  onChange={e => setNewCategoryColor(e.target.value)}
+                  placeholder="#1677ff"
+                  style={{ width: 140 }}
+                />
+                <ColorPicker
+                  value={newCategoryColor}
+                  onChange={(_, hex) => setNewCategoryColor(hex)}
+                />
+              </Space.Compact>
+              <Button type="primary" onClick={handleAddCategory}>
+                {t('category.add')}
+              </Button>
+            </Space>
+          </div>
+        </Space>
+      </Modal>
+
+      <Modal
+        open={renameOpen}
+        title={t('modal.renameCategoryTitle')}
+        okText={t('modal.rename')}
+        onCancel={() => setRenameOpen(false)}
+        onOk={handleRenameSubmit}
+      >
+        <Input
+          value={renameValue}
+          onChange={e => setRenameValue(e.target.value)}
+          placeholder={t('category.newPlaceholder')}
+        />
       </Modal>
 
       <Modal
