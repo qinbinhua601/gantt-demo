@@ -904,26 +904,6 @@ export default function App() {
                 <Switch size="small" />
               </Form.Item>
             </Col>
-            <Col span={4}>
-              <Form.Item name="useRemote" label={t('form.useRemote')} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
-              <Form.Item name="showFilter" label={t('form.showFilter')} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
-              <Form.Item name="showArrow" label={t('form.showArrows')} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
-              <Form.Item name="debug" label={t('form.debug')} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-            </Col>
           </Row>
         </Form>
       </Modal>
