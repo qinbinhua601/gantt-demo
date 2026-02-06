@@ -246,8 +246,9 @@ export function initGantt({
     const viewScrollX = isFixedView ? 0 : scrollX
     // margin left to the container
     const chartStartX = initChartStartX - viewScrollX
+    const weekHeaderHeight = (view === 'week' && viewRange) ? Math.max(24, timeScaleHeight) : 0
     // margin top to the container
-    const chartStartY = Math.max(initChartStartY, timeScaleHeight + milestoneTopHeight) - scrollY
+    const chartStartY = Math.max(initChartStartY + weekHeaderHeight, timeScaleHeight + milestoneTopHeight + weekHeaderHeight) - scrollY
     // clear the painter
     clear && zr.clear()
     const canvasWidth = zr.getWidth()
@@ -586,6 +587,58 @@ export function initGantt({
     zr.on('mousemove', handleMove)
 
     const timeScaleWidth = isFixedView ? daysInView : Math.ceil((canvasWidth) / effectiveUnitWidth)
+    if (view === 'week' && viewRange) {
+      const weekdayHeaderHeight = weekHeaderHeight || Math.max(24, timeScaleHeight)
+      const headerY = chartStartY - timeScaleHeight - weekdayHeaderHeight
+      const locale = (typeof getLocale === 'function' ? getLocale() : 'en')
+      const weekdayFormatter = new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : locale, { weekday: 'short' })
+      for (let col = 0; col < daysInView; col++) {
+        const labelDate = new Date(baseDate.getTime() + (viewRange.start + col) * dayMs)
+        const weekdayText = new zrender.Text({
+          style: {
+            text: weekdayFormatter.format(labelDate),
+            x: chartStartX + col * effectiveUnitWidth + effectiveUnitWidth / 2,
+            y: headerY + weekdayHeaderHeight / 2,
+            textAlign: 'center',
+            textVerticalAlign: 'middle',
+            fontSize: 12,
+            fill: '#6b7280'
+          },
+          z: 2
+        })
+        const { width, height } = weekdayText.getBoundingRect()
+        const textX = chartStartX + col * effectiveUnitWidth - width / 2 + halfEffectiveUnitWidth
+        const textY = headerY - height / 2 + weekdayHeaderHeight / 2
+        weekdayText.attr({
+          style: {
+            x: textX,
+            y: textY
+          }
+        })
+        if (viewRange.start + col === todayOffset) {
+          const paddingX = 12
+          const paddingY = 6
+          const targetRadius = Math.max(width / 2 + paddingX, height / 2 + paddingY)
+          const maxRadius = Math.min(effectiveUnitWidth / 2 - 4, weekdayHeaderHeight / 2 - 2)
+          const radius = Math.max(12, Math.min(maxRadius, targetRadius))
+          const circle = new zrender.Circle({
+            shape: {
+              cx: textX + width / 2,
+              cy: textY + height / 2,
+              r: radius
+            },
+            style: {
+              stroke: '#60a5fa',
+              lineWidth: 1.5,
+              fill: 'rgba(96, 165, 250, 0.08)'
+            },
+            z: 1
+          })
+          zr.add(circle)
+        }
+        zr.add(weekdayText)
+      }
+    }
     // Draw time scale
     const timeScale = new zrender.Rect({
       shape: {
