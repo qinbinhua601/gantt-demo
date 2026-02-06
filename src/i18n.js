@@ -247,15 +247,6 @@ function resolveLocale(input) {
   return null;
 }
 
-function getLocaleFromSearch() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    return resolveLocale(params.get('lang'));
-  } catch (error) {
-    return null;
-  }
-}
-
 function getLocaleFromStorage() {
   try {
     return resolveLocale(localStorage.getItem(STORAGE_KEY));
@@ -271,11 +262,11 @@ function getLocaleFromNavigator() {
   return lang.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
 
-let currentLocale = getLocaleFromSearch() || getLocaleFromStorage() || getLocaleFromNavigator() || 'en';
+let currentLocale = getLocaleFromStorage() || getLocaleFromNavigator() || 'en';
 
 export const getLocale = () => currentLocale;
 
-export const setLocale = (locale, { persist = true, updateUrl = true } = {}) => {
+export const setLocale = (locale, { persist = true } = {}) => {
   const next = resolveLocale(locale) || 'en';
   currentLocale = next;
   if (persist) {
@@ -284,13 +275,6 @@ export const setLocale = (locale, { persist = true, updateUrl = true } = {}) => 
     } catch (error) {
       // ignore
     }
-  }
-  if (updateUrl && typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search);
-    params.set('lang', next);
-    const query = params.toString();
-    const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
-    window.history.replaceState({}, '', nextUrl);
   }
 };
 

@@ -186,14 +186,13 @@ function mapEventsToTasks(events) {
 }
 
 function updateFilterParam(color) {
-  const params = new URLSearchParams(location.search);
-  if (color) {
-    params.set('filter', color);
-  } else {
-    params.delete('filter');
+  const stored = loadStoredSettings() || {};
+  const next = { ...stored, filter: color || '' };
+  if (!color) {
+    delete next.filter;
   }
-  const query = params.toString();
-  location.href = query ? `${location.pathname}?${query}` : location.pathname;
+  saveStoredSettings(next);
+  location.reload();
 }
 
 function loadStoredSettings() {
@@ -281,35 +280,7 @@ export default function App() {
   }, [createForm, editForm]);
 
   useEffect(() => {
-    const stored = loadStoredSettings();
-    if (!stored) return;
-    const params = new URLSearchParams(location.search);
-    const applyIfMissing = (key, value, fallback) => {
-      if (params.has(key)) return;
-      if (value === undefined || value === null || value === '') return;
-      if (value === fallback) return;
-      params.set(key, String(value));
-    };
-    applyIfMissing('unitWidth', stored.unitWidth, unitWidth);
-    applyIfMissing('taskNamePaddingLeft', stored.taskNamePaddingLeft, taskNamePaddingLeft);
-    applyIfMissing('timeScaleHeight', stored.timeScaleHeight, timeScaleHeight);
-    applyIfMissing('milestoneTopHeight', stored.milestoneTopHeight, milestoneTopHeight);
-    applyIfMissing('barHeight', stored.barHeight, barHeight);
-    applyIfMissing('barMargin', stored.barMargin, barMargin);
-    applyIfMissing('scrollSpeed', stored.scrollSpeed, scrollSpeed);
-    applyIfMissing('mockTaskSize', stored.mockTaskSize, mockTaskSize || 0);
-    applyIfMissing('view', stored.view, view || '');
-    applyIfMissing('filter', stored.filter, filterParam || '');
-    applyIfMissing('includeHoliday', stored.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
-    applyIfMissing('useLocal', stored.useLocal ? 1 : 0, useLocal ? 1 : 0);
-    applyIfMissing('useRemote', stored.useRemote ? 1 : 0, useRemote ? 1 : 0);
-    applyIfMissing('showFilter', stored.showFilter ? 1 : 0, showFilter ? 1 : 0);
-    applyIfMissing('showArrow', stored.showArrow ? 1 : 0, showArrow ? 1 : 0);
-    applyIfMissing('debug', stored.debug ? 1 : 0, debug ? 1 : 0);
-    const query = params.toString();
-    if (query !== location.search.replace(/^\?/, '')) {
-      location.href = query ? `${location.pathname}?${query}` : location.pathname;
-    }
+    // URL query overrides are disabled.
   }, []);
 
   useEffect(() => {
@@ -521,20 +492,15 @@ export default function App() {
   };
 
   const handleOpenSettings = () => {
-    const params = new URLSearchParams(location.search);
     const stored = loadStoredSettings() || {};
     const resolveViewValue = (value) => (value ? value : 'all');
     const getNumber = (key, fallback) => {
-      const value = params.get(key);
-      if (value === null || value === '') {
-        return stored[key] ?? fallback;
-      }
-      return Number(value);
+      const value = stored[key];
+      return value === undefined || value === null || value === '' ? fallback : Number(value);
     };
     const getBool = (key, fallback) => {
-      if (!params.has(key)) return stored[key] ?? fallback;
-      const value = params.get(key);
-      return value !== '0';
+      if (stored[key] === undefined || stored[key] === null) return fallback;
+      return Boolean(stored[key]);
     };
     settingsForm.setFieldsValue({
       unitWidth: getNumber('unitWidth', unitWidth),
@@ -551,8 +517,8 @@ export default function App() {
       showFilter: getBool('showFilter', showFilter),
       showArrow: getBool('showArrow', showArrow),
       debug: getBool('debug', debug),
-      view: resolveViewValue(params.get('view') ?? stored.view ?? view ?? ''),
-      filter: params.get('filter') ?? stored.filter ?? filterParam ?? ''
+      view: resolveViewValue(stored.view ?? view ?? ''),
+      filter: stored.filter ?? filterParam ?? ''
     });
     setSettingsOpen(true);
   };
@@ -560,77 +526,46 @@ export default function App() {
   const handleApplySettings = async () => {
     const values = await settingsForm.validateFields();
     saveStoredSettings(values);
-    const params = new URLSearchParams(location.search);
-    const setOrDelete = (key, value, fallback) => {
-      if (value === undefined || value === null || value === '') {
-        params.delete(key);
-        return;
-      }
-      if (value === fallback) {
-        params.delete(key);
-        return;
-      }
-      params.set(key, String(value));
-    };
-    setOrDelete('unitWidth', values.unitWidth, unitWidth);
-    setOrDelete('taskNamePaddingLeft', values.taskNamePaddingLeft, taskNamePaddingLeft);
-    setOrDelete('timeScaleHeight', values.timeScaleHeight, timeScaleHeight);
-    setOrDelete('milestoneTopHeight', values.milestoneTopHeight, milestoneTopHeight);
-    setOrDelete('barHeight', values.barHeight, barHeight);
-    setOrDelete('barMargin', values.barMargin, barMargin);
-    setOrDelete('scrollSpeed', values.scrollSpeed, scrollSpeed);
-    setOrDelete('mockTaskSize', values.mockTaskSize, mockTaskSize || 0);
-    setOrDelete('view', values.view, view || '');
-    setOrDelete('filter', values.filter, filterParam || '');
-    setOrDelete('includeHoliday', values.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
-    setOrDelete('useLocal', values.useLocal ? 1 : 0, useLocal ? 1 : 0);
-    setOrDelete('useRemote', values.useRemote ? 1 : 0, useRemote ? 1 : 0);
-    setOrDelete('showFilter', values.showFilter ? 1 : 0, showFilter ? 1 : 0);
-    setOrDelete('showArrow', values.showArrow ? 1 : 0, showArrow ? 1 : 0);
-    setOrDelete('debug', values.debug ? 1 : 0, debug ? 1 : 0);
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    location.reload();
   };
 
   const handleViewSwitch = (value) => {
     const nextView = value;
-    const params = new URLSearchParams(location.search);
-    params.set('view', nextView);
-    if (nextView !== 'week' && nextView !== 'month') {
-      params.delete('viewDate');
-    }
     const stored = loadStoredSettings() || {};
-    saveStoredSettings({ ...stored, view: nextView });
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    const nextSettings = { ...stored, view: nextView };
+    if (nextView !== 'week' && nextView !== 'month') {
+      delete nextSettings.viewDate;
+    }
+    saveStoredSettings(nextSettings);
+    location.reload();
   };
 
   const handleWeekNavigate = (direction) => {
-    const params = new URLSearchParams(location.search);
     const anchor = viewDate ? dayjs(viewDate) : dayjs();
+    const stored = loadStoredSettings() || {};
+    const nextSettings = { ...stored, view: 'week' };
     if (direction === 'current') {
-      params.delete('viewDate');
+      delete nextSettings.viewDate;
     } else {
       const next = anchor.add(direction * 7, 'day');
-      params.set('viewDate', next.format('YYYY-MM-DD'));
+      nextSettings.viewDate = next.format('YYYY-MM-DD');
     }
-    params.set('view', 'week');
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    saveStoredSettings(nextSettings);
+    location.reload();
   };
 
   const handleMonthNavigate = (direction) => {
-    const params = new URLSearchParams(location.search);
     const anchor = viewDate ? dayjs(viewDate) : dayjs();
+    const stored = loadStoredSettings() || {};
+    const nextSettings = { ...stored, view: 'month' };
     if (direction === 'current') {
-      params.delete('viewDate');
+      delete nextSettings.viewDate;
     } else {
       const next = anchor.add(direction, 'month');
-      params.set('viewDate', next.format('YYYY-MM-DD'));
+      nextSettings.viewDate = next.format('YYYY-MM-DD');
     }
-    params.set('view', 'month');
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    saveStoredSettings(nextSettings);
+    location.reload();
   };
 
   const viewValue = view || 'all';

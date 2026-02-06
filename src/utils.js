@@ -1,10 +1,5 @@
 import { view, filter, showFilter, useLocal, useRemote } from './const'
 
-export function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
-  const params = new URLSearchParams((location.search));
-  return (params.get(key) && autoConvert) ? Number(params.get(key)) : params.get(key);
-}
-
 // sync tasks and mileStones data to localStorage
 export function syncLocal() {
   // 开始过滤的话，不要同步信息
