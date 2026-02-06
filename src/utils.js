@@ -1,17 +1,13 @@
-import { view, filter, showFilter, useLocal, useRemote } from './const'
-
-export function getParamsFromSearch(key = 'unitWidth', autoConvert = true) {
-  const params = new URLSearchParams((location.search));
-  return (params.get(key) && autoConvert) ? Number(params.get(key)) : params.get(key);
-}
+import { view, categoryFilter, useLocal, useRemote } from './const'
+import { t } from './i18n'
 
 // sync tasks and mileStones data to localStorage
 export function syncLocal() {
   // 开始过滤的话，不要同步信息
-  if (filter) return
+  if (categoryFilter) return
   // 同步远端开启
   if(syncRemote()) return
-  if (!getParamsFromSearch('useLocal')) return;
+  if (!useLocal) return;
   Object.keys(defaultValues).forEach(key => {
     const lastLocalStorage = localStorage.getItem(key);
     try {
@@ -27,7 +23,7 @@ let timer = null
 
 function syncRemote() {
   // 如果开启了
-  if (getParamsFromSearch('useRemote')) {
+  if (useRemote) {
     const data = { tasks: window.tasks, mileStones: window.mileStones }
     timer && clearTimeout(timer)
     timer = setTimeout(() => {
@@ -67,16 +63,19 @@ const defaultValues = {
 export function getLocal(key = 'tasks') {
   try {
     const stored = localStorage.getItem(key);
-    const res = stored ? JSON.parse(stored) : defaultValues[key];
-    if (!Array.isArray(res)) {
-      return defaultValues[key];
-    }
-    if (res.length === 0) {
+    const res = stored ? JSON.parse(stored) : null;
+    if (!Array.isArray(res) || res.length === 0) {
+      localStorage.setItem(key, JSON.stringify(defaultValues[key]));
       return defaultValues[key];
     }
     return res;
   } catch (error) {
     console.error('fail to getLocal')
+    try {
+      localStorage.setItem(key, JSON.stringify(defaultValues[key]));
+    } catch (storageError) {
+      // ignore
+    }
     return defaultValues[key]
   }
 }
@@ -103,7 +102,13 @@ export function initData(zr, redrawChart) {
       const { data } = res
       console.log(data)
       if (data?.tasks || data?.mileStones) {
-        updateData('tasks', data.tasks.filter(item => filter ? item.fillColor === filter : true))
+        const defaultCategory = t('category.uncategorized')
+        const filteredTasks = (data.tasks || []).filter(item => (
+          categoryFilter
+            ? (item.category || defaultCategory) === categoryFilter
+            : true
+        ))
+        updateData('tasks', filteredTasks)
         updateData('mileStones', data.mileStones)
         // window.tasks.push(...data.tasks);
         // window.mileStones.push(...data.mileStones);
@@ -112,7 +117,6 @@ export function initData(zr, redrawChart) {
           window.tasks.push({})
         }
       }
-      updateFilterItems(data?.tasks);
       redrawChart(true);
       zr.dom.style.opacity = 1;
     })
@@ -148,33 +152,3 @@ export function updateData(key, data) {
   window[key].push(...[...data])
 }
 
-function onColorPickerClick(e) {
-  console.log(e.target)
-  const params = new URLSearchParams(location.search)
-  if (e.target.dataset?.color) {
-    e.target.dataset.hovered = true
-    params.set('filter', e.target.dataset.color)
-  } else {
-    params.delete('filter')
-  }
-  location.href = `${location.pathname}?${params.toString()}`
-}
-
-// 更新过滤选择器
-export function updateFilterItems(data) {
-  // 必须有数据存储，否则过滤没有意义，因为颜色是随机的
-  if (!useLocal && !useRemote) return []
-  if (!showFilter) return []
-  if (!data) return []
-  const tasks = data
-  const colors = [...new Set(tasks.map(({ fillColor }) => fillColor)), '']
-    .filter(item => item !== undefined)
-  const $colorPicker = document.querySelector('#color-picker');
-  if ($colorPicker) {
-    $colorPicker.removeEventListener('click', onColorPickerClick);
-    $colorPicker.addEventListener('click', onColorPickerClick);
-    const contents = colors.map(color => `<div data-color="${color}" style="background-color: ${color};"></div>`);
-    $colorPicker.innerHTML = contents.join('');
-  }
-  return colors
-}

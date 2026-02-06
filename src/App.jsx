@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  AutoComplete,
   Button,
   ColorPicker,
+  ConfigProvider,
   DatePicker,
   Dropdown,
   Form,
@@ -18,6 +20,8 @@ import {
   Tooltip,
   Typography
 } from 'antd';
+import enUS from 'antd/locale/en_US';
+import zhCN from 'antd/locale/zh_CN';
 import {
   AimOutlined,
   CopyOutlined,
@@ -41,7 +45,6 @@ import { getLocale, setLocale, t } from './i18n';
 import {
   initLastScrollX,
   showFilter,
-  filter as filterParam,
   baseDate,
   dayMs,
   todayOffset,
@@ -59,9 +62,9 @@ import {
   showArrow,
   debug,
   view,
-  viewDate
+  viewDate,
+  categoryFilter
 } from './const';
-import { getRandomColor } from './utils';
 
 const { Header, Content } = Layout;
 
@@ -177,20 +180,19 @@ function mapEventsToTasks(events) {
       start: offset,
       duration,
       resource,
-      fillColor: getRandomColor()
+      category: t('category.uncategorized')
     };
   }).filter(Boolean);
 }
 
-function updateFilterParam(color) {
-  const params = new URLSearchParams(location.search);
-  if (color) {
-    params.set('filter', color);
-  } else {
-    params.delete('filter');
+function updateCategoryFilterParam(category) {
+  const stored = loadStoredSettings() || {};
+  const next = { ...stored, categoryFilter: category || '' };
+  if (!category) {
+    delete next.categoryFilter;
   }
-  const query = params.toString();
-  location.href = query ? `${location.pathname}?${query}` : location.pathname;
+  saveStoredSettings(next);
+  location.reload();
 }
 
 function loadStoredSettings() {
@@ -216,20 +218,69 @@ export default function App() {
   const fileInputRef = useRef(null);
   const jsonInputRef = useRef(null);
   const [locale, setLocaleState] = useState(getLocale());
+  const antdLocale = locale === 'zh' ? zhCN : enUS;
   const [scrollX, setScrollX] = useState(initLastScrollX);
-  const [filterColors, setFilterColors] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoryColors, setCategoryColors] = useState({});
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
   const [editOpen, setEditOpen] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
-  const [editColor, setEditColor] = useState(DEFAULT_COLOR);
+  const [editCategoryColor, setEditCategoryColor] = useState(DEFAULT_COLOR);
   const [createOpen, setCreateOpen] = useState(false);
   const [createPos, setCreatePos] = useState({ posX: 0, posY: 0 });
-  const [createColor, setCreateColor] = useState(DEFAULT_COLOR);
+  const [createCategoryColor, setCreateCategoryColor] = useState(DEFAULT_COLOR);
+  const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState('');
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState('');
+  const [renameValue, setRenameValue] = useState('');
   const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsForm] = Form.useForm();
+
+  const resolveCategoryColor = (category) => {
+    const key = category || t('category.uncategorized');
+    return categoryColors[key] || DEFAULT_COLOR;
+  };
+
+  const displayCategories = Array.from(new Set([
+    ...categories,
+    ...Object.keys(categoryColors)
+  ]));
+
+  const handleCategoryColorChange = (category, color) => {
+    const nextColor = color || DEFAULT_COLOR;
+    setCategoryColors(prev => ({ ...prev, [category]: nextColor }));
+    ganttRef.current?.setCategoryColor?.(category, nextColor);
+  };
+
+  const handleAddCategory = () => {
+    const name = (newCategoryName || '').trim();
+    if (!name) return;
+    handleCategoryColorChange(name, newCategoryColor || undefined);
+    setCategories(prev => (prev.includes(name) ? prev : [...prev, name]));
+    setNewCategoryName('');
+  };
+
+  const handleOpenRename = (category) => {
+    setRenameTarget(category);
+    setRenameValue(category);
+    setRenameOpen(true);
+  };
+
+  const handleRenameSubmit = () => {
+    const nextName = (renameValue || '').trim();
+    if (!nextName || nextName === renameTarget) {
+      setRenameOpen(false);
+      return;
+    }
+    ganttRef.current?.renameCategory?.(renameTarget, nextName);
+    setCategories(prev => (prev.includes(nextName) ? prev : [...prev, nextName]));
+    setRenameOpen(false);
+  };
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -242,11 +293,12 @@ export default function App() {
       onScrollXChange: setScrollX,
       onEditTask: ({ index, task }) => {
         setEditIndex(index);
-        setEditColor(task?.fillColor || DEFAULT_COLOR);
+        const category = task?.category || t('category.uncategorized');
+        setEditCategoryColor(resolveCategoryColor(category));
         editForm.setFieldsValue({
           name: task?.name || '',
           resource: task?.resource || '',
-          fillColor: task?.fillColor || DEFAULT_COLOR
+          category
         });
         setEditOpen(true);
       },
@@ -258,54 +310,32 @@ export default function App() {
       },
       onCreateTask: ({ posX, posY }) => {
         setCreatePos({ posX, posY });
-        setCreateColor(DEFAULT_COLOR);
+        setCreateCategoryColor(resolveCategoryColor(t('category.uncategorized')));
         createForm.setFieldsValue({
           date: dayjs(baseDate.getTime() + posX * dayMs),
           name: '',
           resource: '',
-          fillColor: DEFAULT_COLOR
+          category: t('category.uncategorized')
         });
         setCreateOpen(true);
       },
-      onDataChange: ({ colors }) => {
-        setFilterColors(colors || []);
+      onDataChange: ({ categories: nextCategories, categoryColors: nextCategoryColors }) => {
+        if (Array.isArray(nextCategories)) {
+          setCategories(nextCategories);
+        }
+        if (nextCategoryColors) {
+          setCategoryColors(nextCategoryColors);
+        }
       }
     });
     ganttRef.current = gantt;
-    setFilterColors(gantt.getFilterColors());
+    setCategories(gantt.getCategories?.() || []);
+    setCategoryColors(gantt.getCategoryColors?.() || {});
     return () => gantt.destroy?.();
   }, [createForm, editForm]);
 
   useEffect(() => {
-    const stored = loadStoredSettings();
-    if (!stored) return;
-    const params = new URLSearchParams(location.search);
-    const applyIfMissing = (key, value, fallback) => {
-      if (params.has(key)) return;
-      if (value === undefined || value === null || value === '') return;
-      if (value === fallback) return;
-      params.set(key, String(value));
-    };
-    applyIfMissing('unitWidth', stored.unitWidth, unitWidth);
-    applyIfMissing('taskNamePaddingLeft', stored.taskNamePaddingLeft, taskNamePaddingLeft);
-    applyIfMissing('timeScaleHeight', stored.timeScaleHeight, timeScaleHeight);
-    applyIfMissing('milestoneTopHeight', stored.milestoneTopHeight, milestoneTopHeight);
-    applyIfMissing('barHeight', stored.barHeight, barHeight);
-    applyIfMissing('barMargin', stored.barMargin, barMargin);
-    applyIfMissing('scrollSpeed', stored.scrollSpeed, scrollSpeed);
-    applyIfMissing('mockTaskSize', stored.mockTaskSize, mockTaskSize || 0);
-    applyIfMissing('view', stored.view, view || '');
-    applyIfMissing('filter', stored.filter, filterParam || '');
-    applyIfMissing('includeHoliday', stored.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
-    applyIfMissing('useLocal', stored.useLocal ? 1 : 0, useLocal ? 1 : 0);
-    applyIfMissing('useRemote', stored.useRemote ? 1 : 0, useRemote ? 1 : 0);
-    applyIfMissing('showFilter', stored.showFilter ? 1 : 0, showFilter ? 1 : 0);
-    applyIfMissing('showArrow', stored.showArrow ? 1 : 0, showArrow ? 1 : 0);
-    applyIfMissing('debug', stored.debug ? 1 : 0, debug ? 1 : 0);
-    const query = params.toString();
-    if (query !== location.search.replace(/^\?/, '')) {
-      location.href = query ? `${location.pathname}?${query}` : location.pathname;
-    }
+    // URL query overrides are disabled.
   }, []);
 
   useEffect(() => {
@@ -346,32 +376,46 @@ export default function App() {
 
   const handleEditSubmit = async () => {
     const values = await editForm.validateFields();
+    const category = values.category || t('category.uncategorized');
+    if (editCategoryColor) {
+      ganttRef.current?.setCategoryColor?.(category, editCategoryColor);
+    }
     ganttRef.current?.updateTask(editIndex, {
       ...values,
-      fillColor: editColor || values.fillColor
+      category
     });
     setEditOpen(false);
   };
 
   const handleCreateSubmit = async () => {
     const values = await createForm.validateFields();
+    const category = values.category || t('category.uncategorized');
+    if (createCategoryColor) {
+      ganttRef.current?.setCategoryColor?.(category, createCategoryColor);
+    }
     ganttRef.current?.addTaskAt(createPos, {
       ...values,
-      fillColor: createColor || values.fillColor
+      category
     });
     setCreateOpen(false);
   };
 
   const handleCreateClick = () => {
     setCreatePos({ posX: todayOffset, posY: 0 });
-    setCreateColor(DEFAULT_COLOR);
+    setCreateCategoryColor(resolveCategoryColor(t('category.uncategorized')));
     createForm.setFieldsValue({
       date: dayjs(baseDate.getTime() + todayOffset * dayMs),
       name: '',
       resource: '',
-      fillColor: DEFAULT_COLOR
+      category: t('category.uncategorized')
     });
     setCreateOpen(true);
+  };
+
+  const handleOpenCategoryPanel = () => {
+    setNewCategoryName('');
+    setNewCategoryColor('');
+    setCategoryPanelOpen(true);
   };
 
   const handleImportClick = () => {
@@ -382,6 +426,7 @@ export default function App() {
     const payload = {
       tasks: JSON.parse(localStorage.getItem('tasks') || 'null') ?? window.tasks ?? [],
       mileStones: JSON.parse(localStorage.getItem('mileStones') || 'null') ?? window.mileStones ?? [],
+      categoryColors: JSON.parse(localStorage.getItem('categoryColors') || 'null') ?? null,
       gantt_setting: JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null') ?? null
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -410,6 +455,9 @@ export default function App() {
       }
       if (data.mileStones) {
         localStorage.setItem('mileStones', JSON.stringify(data.mileStones));
+      }
+      if (data.categoryColors) {
+        localStorage.setItem('categoryColors', JSON.stringify(data.categoryColors));
       }
       if (data.gantt_setting) {
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(data.gantt_setting));
@@ -517,20 +565,15 @@ export default function App() {
   };
 
   const handleOpenSettings = () => {
-    const params = new URLSearchParams(location.search);
     const stored = loadStoredSettings() || {};
     const resolveViewValue = (value) => (value ? value : 'all');
     const getNumber = (key, fallback) => {
-      const value = params.get(key);
-      if (value === null || value === '') {
-        return stored[key] ?? fallback;
-      }
-      return Number(value);
+      const value = stored[key];
+      return value === undefined || value === null || value === '' ? fallback : Number(value);
     };
     const getBool = (key, fallback) => {
-      if (!params.has(key)) return stored[key] ?? fallback;
-      const value = params.get(key);
-      return value !== '0';
+      if (stored[key] === undefined || stored[key] === null) return fallback;
+      return Boolean(stored[key]);
     };
     settingsForm.setFieldsValue({
       unitWidth: getNumber('unitWidth', unitWidth),
@@ -547,8 +590,7 @@ export default function App() {
       showFilter: getBool('showFilter', showFilter),
       showArrow: getBool('showArrow', showArrow),
       debug: getBool('debug', debug),
-      view: resolveViewValue(params.get('view') ?? stored.view ?? view ?? ''),
-      filter: params.get('filter') ?? stored.filter ?? filterParam ?? ''
+      view: resolveViewValue(stored.view ?? view ?? '')
     });
     setSettingsOpen(true);
   };
@@ -556,85 +598,73 @@ export default function App() {
   const handleApplySettings = async () => {
     const values = await settingsForm.validateFields();
     saveStoredSettings(values);
-    const params = new URLSearchParams(location.search);
-    const setOrDelete = (key, value, fallback) => {
-      if (value === undefined || value === null || value === '') {
-        params.delete(key);
-        return;
-      }
-      if (value === fallback) {
-        params.delete(key);
-        return;
-      }
-      params.set(key, String(value));
-    };
-    setOrDelete('unitWidth', values.unitWidth, unitWidth);
-    setOrDelete('taskNamePaddingLeft', values.taskNamePaddingLeft, taskNamePaddingLeft);
-    setOrDelete('timeScaleHeight', values.timeScaleHeight, timeScaleHeight);
-    setOrDelete('milestoneTopHeight', values.milestoneTopHeight, milestoneTopHeight);
-    setOrDelete('barHeight', values.barHeight, barHeight);
-    setOrDelete('barMargin', values.barMargin, barMargin);
-    setOrDelete('scrollSpeed', values.scrollSpeed, scrollSpeed);
-    setOrDelete('mockTaskSize', values.mockTaskSize, mockTaskSize || 0);
-    setOrDelete('view', values.view, view || '');
-    setOrDelete('filter', values.filter, filterParam || '');
-    setOrDelete('includeHoliday', values.includeHoliday ? 1 : 0, includeHoliday ? 1 : 0);
-    setOrDelete('useLocal', values.useLocal ? 1 : 0, useLocal ? 1 : 0);
-    setOrDelete('useRemote', values.useRemote ? 1 : 0, useRemote ? 1 : 0);
-    setOrDelete('showFilter', values.showFilter ? 1 : 0, showFilter ? 1 : 0);
-    setOrDelete('showArrow', values.showArrow ? 1 : 0, showArrow ? 1 : 0);
-    setOrDelete('debug', values.debug ? 1 : 0, debug ? 1 : 0);
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    location.reload();
   };
 
   const handleViewSwitch = (value) => {
     const nextView = value;
-    const params = new URLSearchParams(location.search);
-    params.set('view', nextView);
-    if (nextView !== 'week' && nextView !== 'month') {
-      params.delete('viewDate');
-    }
     const stored = loadStoredSettings() || {};
-    saveStoredSettings({ ...stored, view: nextView });
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    const nextSettings = { ...stored, view: nextView };
+    if (nextView !== 'week' && nextView !== 'month') {
+      delete nextSettings.viewDate;
+    }
+    saveStoredSettings(nextSettings);
+    location.reload();
   };
 
   const handleWeekNavigate = (direction) => {
-    const params = new URLSearchParams(location.search);
     const anchor = viewDate ? dayjs(viewDate) : dayjs();
+    const stored = loadStoredSettings() || {};
+    const nextSettings = { ...stored, view: 'week' };
     if (direction === 'current') {
-      params.delete('viewDate');
+      delete nextSettings.viewDate;
     } else {
       const next = anchor.add(direction * 7, 'day');
-      params.set('viewDate', next.format('YYYY-MM-DD'));
+      nextSettings.viewDate = next.format('YYYY-MM-DD');
     }
-    params.set('view', 'week');
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    saveStoredSettings(nextSettings);
+    location.reload();
   };
 
   const handleMonthNavigate = (direction) => {
-    const params = new URLSearchParams(location.search);
     const anchor = viewDate ? dayjs(viewDate) : dayjs();
+    const stored = loadStoredSettings() || {};
+    const nextSettings = { ...stored, view: 'month' };
     if (direction === 'current') {
-      params.delete('viewDate');
+      delete nextSettings.viewDate;
     } else {
       const next = anchor.add(direction, 'month');
-      params.set('viewDate', next.format('YYYY-MM-DD'));
+      nextSettings.viewDate = next.format('YYYY-MM-DD');
     }
-    params.set('view', 'month');
-    const query = params.toString();
-    location.href = query ? `${location.pathname}?${query}` : location.pathname;
+    saveStoredSettings(nextSettings);
+    location.reload();
   };
 
   const viewValue = view || 'all';
   const isFixedView = viewValue === 'week' || viewValue === 'month';
+  const categoryOptions = displayCategories.map(category => ({
+    value: category,
+    label: (
+      <Space>
+        <span
+          style={{
+            display: 'inline-block',
+            width: 12,
+            height: 12,
+            borderRadius: 4,
+            background: resolveCategoryColor(category),
+            border: '1px solid #d9d9d9'
+          }}
+        />
+        {category}
+      </Space>
+    )
+  }));
 
   return (
-    <Layout className="app-layout">
-      <Header className="app-header">
+    <ConfigProvider locale={antdLocale}>
+      <Layout className="app-layout">
+        <Header className="app-header">
         <div className="toolbar">
           <Space className="toolbar-group" size="middle">
             <Typography.Title level={4} style={{ margin: 0 }}>
@@ -696,6 +726,11 @@ export default function App() {
                 {t('toolbar.settings')}
               </Button>
             </Tooltip>
+            <Tooltip title={t('toolbar.manageCategories')}>
+              <Button icon={<EditOutlined />} onClick={handleOpenCategoryPanel}>
+                {t('toolbar.categories')}
+              </Button>
+            </Tooltip>
             <Tooltip title={t('toolbar.clearTasksTooltip')}>
               <Button danger icon={<DeleteOutlined />} onClick={handleClearTasks}>
                 {t('toolbar.clearTasks')}
@@ -750,30 +785,14 @@ export default function App() {
             <Space size="middle">
               <FilterOutlined />
               <Select
-                value={filterParam || ''}
-                placeholder={t('filter.placeholder')}
+                value={categoryFilter || ''}
+                placeholder={t('filter.categoryPlaceholder')}
                 style={{ width: 220 }}
-                options={filterColors.map(color => ({
-                  label: color ? (
-                    <Space>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: 12,
-                          height: 12,
-                          borderRadius: 4,
-                          background: color,
-                          border: '1px solid #d9d9d9'
-                        }}
-                      />
-                      {color}
-                    </Space>
-                  ) : (
-                    t('filter.allColors')
-                  ),
-                  value: color
-                }))}
-                onChange={updateFilterParam}
+                options={[
+                  { label: t('filter.allCategories'), value: '' },
+                  ...categoryOptions
+                ]}
+                onChange={updateCategoryFilterParam}
                 allowClear
               />
             </Space>
@@ -812,23 +831,31 @@ export default function App() {
           <Form.Item name="resource" label={t('form.owner')}>
             <Input placeholder={t('form.ownerPlaceholder')} />
           </Form.Item>
-          <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
-          >
+          <Form.Item name="category" label={t('category.label')}>
+            <AutoComplete
+              options={categoryOptions}
+              placeholder={t('category.placeholder')}
+              filterOption={(input, option) =>
+                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              onSelect={(value) => setEditCategoryColor(resolveCategoryColor(value))}
+              onChange={(value) => setEditCategoryColor(resolveCategoryColor(value))}
+            />
+          </Form.Item>
+          <Form.Item label={t('category.colorLabel')}>
             <Space.Compact style={{ width: '100%' }}>
               <Input
-                value={editColor}
+                value={editCategoryColor}
                 onChange={e => {
                   const value = e.target.value;
-                  setEditColor(value);
-                  editForm.setFieldsValue({ fillColor: value });
+                  setEditCategoryColor(value);
                 }}
                 placeholder="#1677ff"
               />
               <ColorPicker
-                value={editColor}
+                value={editCategoryColor}
                 onChange={(_, hex) => {
-                  setEditColor(hex);
-                  editForm.setFieldsValue({ fillColor: hex });
+                  setEditCategoryColor(hex);
                 }}
               />
             </Space.Compact>
@@ -864,28 +891,142 @@ export default function App() {
           <Form.Item name="resource" label={t('form.owner')}>
             <Input placeholder={t('form.ownerPlaceholder')} />
           </Form.Item>
-          <Form.Item name="fillColor" label={t('form.fillColor')} rules={[{ required: true, message: t('form.fillColorRequired') }]}
-          >
+          <Form.Item name="category" label={t('category.label')}>
+            <AutoComplete
+              options={categoryOptions}
+              placeholder={t('category.placeholder')}
+              filterOption={(input, option) =>
+                (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              onSelect={(value) => setCreateCategoryColor(resolveCategoryColor(value))}
+              onChange={(value) => setCreateCategoryColor(resolveCategoryColor(value))}
+            />
+          </Form.Item>
+          <Form.Item label={t('category.colorLabel')}>
             <Space.Compact style={{ width: '100%' }}>
               <Input
-                value={createColor}
+                value={createCategoryColor}
                 onChange={e => {
                   const value = e.target.value;
-                  setCreateColor(value);
-                  createForm.setFieldsValue({ fillColor: value });
+                  setCreateCategoryColor(value);
                 }}
                 placeholder="#1677ff"
               />
               <ColorPicker
-                value={createColor}
+                value={createCategoryColor}
                 onChange={(_, hex) => {
-                  setCreateColor(hex);
-                  createForm.setFieldsValue({ fillColor: hex });
+                  setCreateCategoryColor(hex);
                 }}
               />
             </Space.Compact>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={categoryPanelOpen}
+        title={t('modal.categoryManagerTitle')}
+        okText={t('modal.close')}
+        onCancel={() => setCategoryPanelOpen(false)}
+        onOk={() => setCategoryPanelOpen(false)}
+        width={640}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          {displayCategories.map(category => (
+            <div
+              key={category}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16
+              }}
+            >
+              <Space>
+                <Typography.Text>{category}</Typography.Text>
+                {category !== t('category.uncategorized') && (
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => handleOpenRename(category)}
+                  >
+                    {t('category.rename')}
+                  </Button>
+                )}
+              </Space>
+              <Space.Compact>
+                <Input
+                  value={resolveCategoryColor(category)}
+                  onChange={e => handleCategoryColorChange(category, e.target.value)}
+                  placeholder="#1677ff"
+                  style={{ width: 140 }}
+                />
+                <ColorPicker
+                  value={resolveCategoryColor(category)}
+                  onChange={(_, hex) => handleCategoryColorChange(category, hex)}
+                />
+                {category !== t('category.uncategorized') && (
+                  <Button
+                    danger
+                    onClick={() => {
+                      Modal.confirm({
+                        title: t('modal.deleteCategoryTitle'),
+                        content: t('modal.deleteCategoryContent', { category }),
+                        okText: t('modal.delete'),
+                        okButtonProps: { danger: true },
+                        onOk: () => {
+                          ganttRef.current?.deleteCategory?.(category, t('category.uncategorized'));
+                          setCategories(prev => prev.filter(item => item !== category));
+                        }
+                      });
+                    }}
+                  >
+                    {t('category.delete')}
+                  </Button>
+                )}
+              </Space.Compact>
+            </div>
+          ))}
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+            <Space wrap>
+              <Input
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                placeholder={t('category.newPlaceholder')}
+                style={{ width: 180 }}
+              />
+              <Space.Compact>
+                <Input
+                  value={newCategoryColor}
+                  onChange={e => setNewCategoryColor(e.target.value)}
+                  placeholder="#1677ff"
+                  style={{ width: 140 }}
+                />
+                <ColorPicker
+                  value={newCategoryColor}
+                  onChange={(_, hex) => setNewCategoryColor(hex)}
+                />
+              </Space.Compact>
+              <Button type="primary" onClick={handleAddCategory}>
+                {t('category.add')}
+              </Button>
+            </Space>
+          </div>
+        </Space>
+      </Modal>
+
+      <Modal
+        open={renameOpen}
+        title={t('modal.renameCategoryTitle')}
+        okText={t('modal.rename')}
+        onCancel={() => setRenameOpen(false)}
+        onOk={handleRenameSubmit}
+      >
+        <Input
+          value={renameValue}
+          onChange={e => setRenameValue(e.target.value)}
+          placeholder={t('category.newPlaceholder')}
+        />
       </Modal>
 
       <Modal
@@ -949,11 +1090,6 @@ export default function App() {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item name="filter" label={t('form.filterColor')}>
-                <Input placeholder="#RRGGBB" />
-              </Form.Item>
-            </Col>
             <Col span={4}>
               <Form.Item name="includeHoliday" label={t('form.includeHoliday')} valuePropName="checked">
                 <Switch size="small" />
@@ -965,28 +1101,14 @@ export default function App() {
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="useRemote" label={t('form.useRemote')} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
               <Form.Item name="showFilter" label={t('form.showFilter')} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
-              <Form.Item name="showArrow" label={t('form.showArrows')} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-            </Col>
-            <Col span={4}>
-              <Form.Item name="debug" label={t('form.debug')} valuePropName="checked">
                 <Switch size="small" />
               </Form.Item>
             </Col>
           </Row>
         </Form>
       </Modal>
-    </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }
