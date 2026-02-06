@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   ColorPicker,
+  ConfigProvider,
   DatePicker,
   Dropdown,
   Form,
@@ -18,6 +19,8 @@ import {
   Tooltip,
   Typography
 } from 'antd';
+import enUS from 'antd/locale/en_US';
+import zhCN from 'antd/locale/zh_CN';
 import {
   AimOutlined,
   CopyOutlined,
@@ -216,6 +219,7 @@ export default function App() {
   const fileInputRef = useRef(null);
   const jsonInputRef = useRef(null);
   const [locale, setLocaleState] = useState(getLocale());
+  const antdLocale = locale === 'zh' ? zhCN : enUS;
   const [scrollX, setScrollX] = useState(initLastScrollX);
   const [filterColors, setFilterColors] = useState([]);
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null });
@@ -633,8 +637,9 @@ export default function App() {
   const isFixedView = viewValue === 'week' || viewValue === 'month';
 
   return (
-    <Layout className="app-layout">
-      <Header className="app-header">
+    <ConfigProvider locale={antdLocale}>
+      <Layout className="app-layout">
+        <Header className="app-header">
         <div className="toolbar">
           <Space className="toolbar-group" size="middle">
             <Typography.Title level={4} style={{ margin: 0 }}>
@@ -987,6 +992,7 @@ export default function App() {
           </Row>
         </Form>
       </Modal>
-    </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }

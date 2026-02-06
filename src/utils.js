@@ -11,7 +11,7 @@ export function syncLocal() {
   if (filter) return
   // 同步远端开启
   if(syncRemote()) return
-  if (!getParamsFromSearch('useLocal')) return;
+  if (!useLocal) return;
   Object.keys(defaultValues).forEach(key => {
     const lastLocalStorage = localStorage.getItem(key);
     try {
@@ -27,7 +27,7 @@ let timer = null
 
 function syncRemote() {
   // 如果开启了
-  if (getParamsFromSearch('useRemote')) {
+  if (useRemote) {
     const data = { tasks: window.tasks, mileStones: window.mileStones }
     timer && clearTimeout(timer)
     timer = setTimeout(() => {
@@ -67,16 +67,19 @@ const defaultValues = {
 export function getLocal(key = 'tasks') {
   try {
     const stored = localStorage.getItem(key);
-    const res = stored ? JSON.parse(stored) : defaultValues[key];
-    if (!Array.isArray(res)) {
-      return defaultValues[key];
-    }
-    if (res.length === 0) {
+    const res = stored ? JSON.parse(stored) : null;
+    if (!Array.isArray(res) || res.length === 0) {
+      localStorage.setItem(key, JSON.stringify(defaultValues[key]));
       return defaultValues[key];
     }
     return res;
   } catch (error) {
     console.error('fail to getLocal')
+    try {
+      localStorage.setItem(key, JSON.stringify(defaultValues[key]));
+    } catch (storageError) {
+      // ignore
+    }
     return defaultValues[key]
   }
 }

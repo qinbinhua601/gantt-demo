@@ -29,7 +29,7 @@ export const scrollSpeed = getParamsFromSearch('scrollSpeed') ?? 35;
 // includeHoliday hell no!!!
 export const includeHoliday = getParamsFromSearch('includeHoliday') ?? false;
 // if use local data
-export const useLocal = getParamsFromSearch('useLocal');
+export const useLocal = getParamsFromSearch('useLocal') ?? true;
 // if use remote data
 export const useRemote = getParamsFromSearch('useRemote');
 // query view
