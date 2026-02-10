@@ -55,7 +55,7 @@ function cspNonceDevPlugin() {
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [cspNonceDevPlugin(), react()],
-  base: "/gantt-demo/",
+  base: "/",
   server: {
     open: true
   }
