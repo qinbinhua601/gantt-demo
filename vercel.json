@@ -1,8 +1,21 @@
 {
-  "rewrites": [
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "routes": [
     {
-      "source": "/gantt-demo/:match*",
-      "destination": "/:match*"
+      "src": "^/$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/gantt-demo/?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/gantt-demo(/[^./]+)?$",
+      "dest": "/api/index"
+    },
+    {
+      "handle": "filesystem"
     }
   ]
 }

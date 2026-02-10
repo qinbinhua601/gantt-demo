@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta property="csp-nonce" id="csp-nonce" content="__CSP_NONCE_META__" />
     <title>gantt</title>
   </head>
   <body>
@@ -15,7 +16,16 @@
       </div>
     </div>
 
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.jsx" nonce="__CSP_NONCE_ATTR__"></script>
+    <script nonce="__CSP_NONCE_ATTR__">
+      // Initialize CSP nonce early
+      (function() {
+        const nonceElement = document.getElementById('csp-nonce');
+        if (nonceElement && nonceElement.content) {
+          window.__CSP_NONCE__ = nonceElement.content;
+        }
+      })();
+    </script>
   </body>
 </html>
 
