@@ -6,3 +6,4 @@ server
 dist
 .vercel
 .env*.local
+dev-certs

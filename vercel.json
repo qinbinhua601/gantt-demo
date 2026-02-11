@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "routes": [
     {
+      "src": "^/api/csp-report$",
+      "dest": "/api/csp-report"
+    },
+    {
       "src": "^/$",
       "dest": "/api/index"
     },

@@ -12,9 +12,16 @@ export default function handler(req, res) {
   const nonce = crypto.randomBytes(16).toString('base64');
   
   // Set CSP header with strict-dynamic and nonce
-  const cspHeader = `default-src 'self'; script-src 'strict-dynamic' 'nonce-${nonce}' https: http:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http:; font-src 'self' data: https:; connect-src 'self' https: http:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`;
+  const cspHeader = `default-src 'self'; script-src 'strict-dynamic' 'nonce-${nonce}' https: http:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http:; font-src 'self' data: https:; connect-src 'self' https: http:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /api/csp-report; report-to csp-endpoint;`;
   
   res.setHeader('Content-Security-Policy', cspHeader);
+  res.setHeader('Content-Security-Policy-Report-Only', cspHeader);
+  res.setHeader('Report-To', JSON.stringify({
+    group: 'csp-endpoint',
+    max_age: 10886400,
+    endpoints: [{ url: '/api/csp-report' }]
+  }));
+  res.setHeader('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.setHeader('Cache-Control', 'no-store');
   
   // Read the index.html and inject the nonce

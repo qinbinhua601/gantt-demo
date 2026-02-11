@@ -3,12 +3,39 @@ import react from '@vitejs/plugin-react'
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const devKeyPath = path.join(__dirname, 'dev-certs', 'localhost-key.pem')
+const devCertPath = path.join(__dirname, 'dev-certs', 'localhost-cert.pem')
 
 function cspNonceDevPlugin() {
   return {
     name: 'csp-nonce-dev',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
+        if (req.url === '/api/csp-report') {
+          let body = ''
+          req.on('data', chunk => {
+            body += chunk
+          })
+          req.on('end', () => {
+            try {
+              const contentType = req.headers['content-type'] || ''
+              const payload = contentType.includes('application/json') && body
+                ? JSON.parse(body)
+                : body
+              console.log('CSP Violation Report:', payload)
+            } catch (error) {
+              console.error('CSP report handler error:', error)
+            }
+            res.statusCode = 204
+            res.end()
+          })
+          return
+        }
+
         if (req.url === '/' || req.url === '/gantt-demo/') {
           const nonce = crypto.randomBytes(16).toString('base64')
           const cspHeader = `
@@ -21,9 +48,18 @@ function cspNonceDevPlugin() {
             frame-ancestors 'none';
             base-uri 'self';
             form-action 'self';
+            report-uri /api/csp-report;
+            report-to csp-endpoint;
           `.replace(/\s+/g, ' ').trim()
 
           res.setHeader('Content-Security-Policy', cspHeader)
+          res.setHeader('Content-Security-Policy-Report-Only', cspHeader)
+          res.setHeader('Report-To', JSON.stringify({
+            group: 'csp-endpoint',
+            max_age: 10886400,
+            endpoints: [{ url: '/api/csp-report' }]
+          }))
+          res.setHeader('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"')
 
           try {
             const htmlPath = path.join(server.config.root, 'index.html')
@@ -57,6 +93,10 @@ export default defineConfig({
   plugins: [cspNonceDevPlugin(), react()],
   base: "/",
   server: {
-    open: true
+    open: true,
+    https: {
+      key: fs.readFileSync(devKeyPath),
+      cert: fs.readFileSync(devCertPath)
+    }
   }
 })
